@@ -1,0 +1,2 @@
+- [National Bank of Georgia](https://nbg.gov.ge/en/monetary-policy/currency)
+- [JSON with exchange Rates]https://nbg.gov.ge/gw/api/ct/monetarypolicy/currencies/en/json/?date=2025-03-29

@@ -1,0 +1,5 @@
+.*
+!.github/
+!.gitignore
+!.htmlhintrc
+!.pre-commit-config.yaml

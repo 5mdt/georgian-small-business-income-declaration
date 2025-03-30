@@ -1,0 +1,65 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "items": {
+    "properties": {
+      "currencies": {
+        "items": {
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "date": {
+              "format": "date-time",
+              "type": "string"
+            },
+            "diff": {
+              "type": "number"
+            },
+            "diffFormated": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "quantity": {
+              "type": "number"
+            },
+            "rate": {
+              "type": "number"
+            },
+            "rateFormated": {
+              "type": "string"
+            },
+            "validFromDate": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "quantity",
+            "rateFormated",
+            "diffFormated",
+            "rate",
+            "name",
+            "diff",
+            "date",
+            "validFromDate"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "date": {
+        "format": "date-time",
+        "type": "string"
+      }
+    },
+    "required": [
+      "date",
+      "currencies"
+    ],
+    "type": "object"
+  },
+  "type": "array"
+}

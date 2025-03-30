@@ -1,0 +1,42 @@
+# lint-html.yml
+
+name: Lint HTML Files
+
+on:
+  push:
+    branches:
+      - main
+      - "feature/*"
+  pull_request:
+    branches:
+      - main
+      - "feature/*"
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: '14'
+
+    - name: Install HTMLHint
+      run: |
+        npm install -g htmlhint
+
+    - name: Lint HTML files
+      run: |
+        htmlhint "**/*.html" --config .htmlhintrc
+      continue-on-error: true
+
+    - name: Upload lint results as artifacts
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: lint-results
+        path: ./htmlhint-reports

@@ -1,0 +1,23 @@
+# docker-compose.yml
+
+services:
+  app:
+    image: docker.io/library/nginx:stable-alpine
+    volumes:
+      - ./:/usr/share/nginx/html
+    labels:
+      com.centurylinklabs.watchtower.enable: 'true'
+      local.yacht.port.3000: WebUI
+      traefik.docker.network: traefik_default
+      traefik.enable: true
+      traefik.http.routers.small-business-income-declaration.entrypoints: websecure
+      traefik.http.routers.small-business-income-declaration.rule: Host(`${SERVICE_NAME_OVERRIDE:-small-business-income-declaration}.${DOMAIN_NAME:-local}`)
+      traefik.http.routers.small-business-income-declaration.service: small-business-income-declaration
+      traefik.http.routers.small-business-income-declaration.tls: true
+      traefik.http.routers.small-business-income-declaration.tls.certresolver: ${TRAEFIK_CERT_RESOLVER:-letsencrypt-cloudflare-dns-challenge}
+      traefik.http.services.small-business-income-declaration.loadbalancer.server.port: 80
+    networks:
+      - traefik_default
+networks:
+  traefik_default:
+    external: true
