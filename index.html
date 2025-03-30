@@ -3,22 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Currency API Fetcher</title>
-    <link rel="stylesheet" href="style.css"> <!-- Link to the external CSS -->
+    <title>Currency Converter (GEL)</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
     <div class="container">
-        <h1>Currency API Fetcher</h1>
+        <h1>Currency to GEL Converter</h1>
+
         <label for="datePicker">Select a Date:</label>
         <input type="date" id="datePicker">
-        <button id="fetchButton">Fetch Data</button>
+
+        <label for="currencySelect">Select Currency:</label>
+        <select id="currencySelect">
+            <option value="">Loading...</option>
+        </select>
+
+        <label for="amountInput">Enter Amount:</label>
+        <input type="number" id="amountInput" placeholder="Amount in selected currency">
+
+        <button id="fetchButton">Convert to GEL</button>
 
         <div id="loadingMessage" style="display:none;">Loading...</div>
         <div class="result" id="result"></div>
         <div class="error" id="errorMessage"></div>
     </div>
 
-    <script src="script.js"></script> <!-- Link to the external JS file -->
+    <script src="script.js"></script>
+
 </body>
 </html>
