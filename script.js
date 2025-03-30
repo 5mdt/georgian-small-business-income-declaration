@@ -4,51 +4,75 @@ document.getElementById('fetchButton').addEventListener('click', function () {
   const resultDiv = document.getElementById('result');
   const loadingMessage = document.getElementById('loadingMessage');
 
-  // Clear previous results and hide the loading message
-  resultDiv.style.display = 'none';
-  errorMessage.textContent = '';
-  loadingMessage.style.display = 'none';
+  // Clear previous results
+  resultDiv.innerHTML = "";
+  errorMessage.textContent = "";
+  loadingMessage.style.display = "none";
 
-  // Validate the selected date
+  // Validate input date
   if (!date) {
-      errorMessage.textContent = 'Please select a date.';
+      errorMessage.textContent = "Please select a date.";
       return;
   }
 
   // Show loading message
-  loadingMessage.style.display = 'block';
+  loadingMessage.style.display = "block";
 
-  // Construct the API URL
+  // Construct API URL
   const apiUrl = `https://nbg.gov.ge/gw/api/ct/monetarypolicy/currencies/en/json/?date=${date}`;
 
-  // Fetch data from the API
+  // Fetch data
   fetch(apiUrl)
       .then(response => {
           if (!response.ok) {
-              throw new Error('Failed to fetch data.');
+              throw new Error(`API error: ${response.statusText}`);
           }
           return response.json();
       })
       .then(data => {
-          loadingMessage.style.display = 'none'; // Hide loading message after fetch is done
+          loadingMessage.style.display = "none";
 
-          // Validate if data is valid
-          if (data && Array.isArray(data) && data.length > 0) {
-              // Format data for better readability
-              resultDiv.textContent = JSON.stringify(data, null, 2);
-              resultDiv.style.display = 'block';
-          } else {
-              throw new Error('No valid data received from the API.');
+          // Validate response
+          if (!Array.isArray(data) || data.length === 0 || !data[0].currencies) {
+              throw new Error("No valid currency data available.");
           }
+
+          // Extract currency data
+          const currencies = data[0].currencies;
+
+          // Generate table
+          const table = document.createElement("table");
+          table.innerHTML = `
+              <tr>
+                  <th>Code</th>
+                  <th>Name</th>
+                  <th>Rate</th>
+                  <th>Difference</th>
+              </tr>
+          `;
+
+          currencies.forEach(currency => {
+              const row = document.createElement("tr");
+              row.innerHTML = `
+                  <td>${currency.code}</td>
+                  <td>${currency.name}</td>
+                  <td>${currency.rateFormated}</td>
+                  <td>${currency.diffFormated}</td>
+              `;
+              table.appendChild(row);
+          });
+
+          // Display results
+          resultDiv.appendChild(table);
+          resultDiv.style.display = "block";
       })
       .catch(error => {
-          loadingMessage.style.display = 'none'; // Hide loading message if error occurs
+          loadingMessage.style.display = "none";
           errorMessage.textContent = `Error: ${error.message}`;
       });
 });
 
-// Set the default date to today
+// Set default date to today
 window.onload = function() {
-  const today = new Date().toISOString().split('T')[0];
-  document.getElementById('datePicker').value = today;
+  document.getElementById("datePicker").value = new Date().toISOString().split("T")[0];
 };
