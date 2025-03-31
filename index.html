@@ -11,22 +11,38 @@
     <div class="container">
         <h1>Currency to GEL Converter</h1>
 
-        <label for="datePicker">Select a Date:</label>
-        <input type="date" id="datePicker">
+        <!-- Input Section -->
+        <div class="input-section">
+            <div class="input-group">
+                <label for="datePicker">Select a Date:</label>
+                <input type="date" id="datePicker">
+            </div>
 
-        <label for="currencySelect">Select Currency:</label>
-        <select id="currencySelect">
-            <option value="">Loading...</option>
-        </select>
+            <div class="input-group">
+                <label for="currencySelect">Select Currency:</label>
+                <select id="currencySelect">
+                    <option value="">Loading...</option>
+                </select>
+            </div>
 
-        <label for="amountInput">Enter Amount:</label>
-        <input type="number" id="amountInput" placeholder="Amount in selected currency">
+            <div class="input-group">
+                <label for="amountInput">Enter Amount:</label>
+                <input type="number" id="amountInput" placeholder="Amount in selected currency">
+            </div>
 
-        <button id="fetchButton">Convert to GEL</button>
+            <button id="fetchButton">Convert to GEL</button>
+        </div>
 
-        <div id="loadingMessage" style="display:none;">Loading...</div>
-        <div class="result" id="result"></div>
-        <div class="error" id="errorMessage"></div>
+        <!-- Status Section -->
+        <div class="status-section">
+            <div id="loadingMessage" style="display:none;">Loading...</div>
+            <div class="error" id="errorMessage"></div>
+        </div>
+
+        <!-- Result Section -->
+        <div class="result-section">
+            <div class="result" id="result"></div>
+        </div>
     </div>
 
     <script src="script.js"></script>
