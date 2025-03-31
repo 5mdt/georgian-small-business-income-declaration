@@ -7,26 +7,26 @@ document.getElementById('fetchButton').addEventListener('click', function () {
     const loadingMessage = document.getElementById('loadingMessage');
 
     // Clear previous results
-    resultDiv.innerHTML = "";
-    errorMessage.textContent = "";
-    loadingMessage.style.display = "none";
+    resultDiv.innerHTML = '';
+    errorMessage.textContent = '';
+    loadingMessage.style.display = 'none';
 
     // Input validation
     if (!date) {
-        errorMessage.textContent = "Please select a date.";
+        errorMessage.textContent = 'Please select a date.';
         return;
     }
     if (!currencyCode) {
-        errorMessage.textContent = "Please select a currency.";
+        errorMessage.textContent = 'Please select a currency.';
         return;
     }
     if (isNaN(amount) || amount <= 0) {
-        errorMessage.textContent = "Please enter a valid amount.";
+        errorMessage.textContent = 'Please enter a valid amount.';
         return;
     }
 
     // Show loading message
-    loadingMessage.style.display = "block";
+    loadingMessage.style.display = 'block';
 
     // Check if data is cached
     const cachedData = sessionStorage.getItem(`currencyData_${date}`);
@@ -50,7 +50,7 @@ document.getElementById('fetchButton').addEventListener('click', function () {
                 handleCurrencyData(data, amount, currencyCode, resultDiv, loadingMessage, errorMessage);
             })
             .catch(error => {
-                loadingMessage.style.display = "none";
+                loadingMessage.style.display = 'none';
                 errorMessage.textContent = `Error: ${error.message}`;
             });
     }
@@ -58,10 +58,10 @@ document.getElementById('fetchButton').addEventListener('click', function () {
 
   // Function to handle currency data
   function handleCurrencyData(data, amount, currencyCode, resultDiv, loadingMessage, errorMessage) {
-    loadingMessage.style.display = "none";
+    loadingMessage.style.display = 'none';
 
     if (!Array.isArray(data) || data.length === 0 || !data[0].currencies) {
-        throw new Error("No valid currency data available.");
+        throw new Error('No valid currency data available.');
     }
 
     // Extract currency data
@@ -69,7 +69,7 @@ document.getElementById('fetchButton').addEventListener('click', function () {
     const selectedCurrency = currencies.find(c => c.code === currencyCode);
 
     if (!selectedCurrency) {
-        throw new Error("Selected currency not found.");
+        throw new Error('Selected currency not found.');
     }
 
     // Perform conversion to GEL using the correct formula: rate / quantity
@@ -81,7 +81,7 @@ document.getElementById('fetchButton').addEventListener('click', function () {
         <p>Exchange Rate: <strong>${selectedCurrency.rateFormated}</strong></p>
         <p>Quantity Factor: <strong>${selectedCurrency.quantity}</strong></p>
     `;
-    resultDiv.style.display = "block";
+    resultDiv.style.display = 'block';
   }
 
   // Load currencies when date is selected
@@ -96,13 +96,13 @@ document.getElementById('fetchButton').addEventListener('click', function () {
     const loadingMessage = document.getElementById('loadingMessage');
 
     // Clear previous errors and loading message
-    errorMessage.textContent = "";
-    loadingMessage.style.display = "none";
+    errorMessage.textContent = '';
+    loadingMessage.style.display = 'none';
 
     if (!date) return;
 
     // Show loading
-    currencySelect.innerHTML = `<option value="">Loading...</option>`;
+    currencySelect.innerHTML = '<option value="">Loading...</option>';
 
     // Check if data is cached
     const cachedData = sessionStorage.getItem(`currencyData_${date}`);
@@ -134,13 +134,13 @@ document.getElementById('fetchButton').addEventListener('click', function () {
   // Function to populate currency select
   function populateCurrencySelect(data, currencySelect) {
     if (!Array.isArray(data) || data.length === 0 || !data[0].currencies) {
-        throw new Error("No valid currency data available.");
+        throw new Error('No valid currency data available.');
     }
 
     // Populate dropdown
-    currencySelect.innerHTML = `<option value="">Select a currency</option>`;
+    currencySelect.innerHTML = '<option value="">Select a currency</option>';
     data[0].currencies.forEach(currency => {
-        const option = document.createElement("option");
+        const option = document.createElement('option');
         option.value = currency.code;
         option.textContent = `${currency.code} - ${currency.name}`;
         currencySelect.appendChild(option);
@@ -149,6 +149,6 @@ document.getElementById('fetchButton').addEventListener('click', function () {
 
   // Set default date to today and load currencies
   window.onload = function () {
-    document.getElementById("datePicker").value = new Date().toISOString().split("T")[0];
+    document.getElementById('datePicker').value = new Date().toISOString().split('T')[0];
     loadCurrencies();
   };
