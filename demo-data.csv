@@ -1,0 +1,11 @@
+Date,User ID,User Name,Taxpayer ID,Currency Code,Currency Name,Amount,Exchange Rate,Quantity,Converted GEL,YTD Income,Comment,Timestamp
+2025-01-15,demo_user_1,"Nino Beridze",01234567890,USD,"US Dollar",500.00,2.8500,1,1425.00,1425.00,"Freelance web development project",2025-01-15T10:30:00.000Z
+2025-01-22,demo_user_1,"Nino Beridze",01234567890,EUR,"Euro",300.00,3.0200,1,906.00,2331.00,"Consulting fee from German client",2025-01-22T14:20:00.000Z
+2025-02-05,demo_user_1,"Nino Beridze",01234567890,USD,"US Dollar",750.00,2.8600,1,2145.00,4476.00,"Mobile app development",2025-02-05T09:15:00.000Z
+2025-02-18,demo_user_2,"Natalia Ivanova",98765432101,GBP,"British Pound Sterling",200.00,3.4500,1,690.00,690.00,"Translation services",2025-02-18T11:45:00.000Z
+2025-03-01,demo_user_1,"Nino Beridze",01234567890,GEL,"Georgian Lari",500.00,1.0000,1,500.00,4976.00,"Local design work",2025-03-01T16:00:00.000Z
+2025-03-10,demo_user_2,"Natalia Ivanova",98765432101,USD,"US Dollar",1000.00,2.8700,1,2870.00,3560.00,"Content writing contract",2025-03-10T13:30:00.000Z
+2025-03-20,demo_user_3,"Mariam Akhvlediani",45678912345,EUR,"Euro",450.00,3.0300,1,1363.50,1363.50,"Photography services",2025-03-20T10:00:00.000Z
+2025-03-25,demo_user_1,"Nino Beridze",01234567890,USD,"US Dollar",600.00,2.8750,1,1725.00,6701.00,"UI/UX design project",2025-03-25T15:20:00.000Z
+2025-04-05,demo_user_2,"Natalia Ivanova",98765432101,EUR,"Euro",350.00,3.0400,1,1064.00,4624.00,"Blog post writing",2025-04-05T12:10:00.000Z
+2025-04-12,demo_user_3,"Mariam Akhvlediani",45678912345,USD,"US Dollar",800.00,2.8800,1,2304.00,3667.50,"Video editing services",2025-04-12T14:50:00.000Z

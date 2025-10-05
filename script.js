@@ -38,7 +38,7 @@ function deleteUser(userId) {
     // Check if user has transactions
     const userTransactions = transactions.filter(t => t.userId === userId);
     if (userTransactions.length > 0) {
-        if (!confirm(`This user has ${userTransactions.length} transaction(s). Delete anyway?`)) {
+        if (!confirm(`This user has ${userTransactions.length} transaction(s). Delete user and all associated transactions?`)) {
             return;
         }
     }
@@ -49,11 +49,17 @@ function deleteUser(userId) {
         return;
     }
 
-    const filtered = users.filter(u => u.id !== userId);
-    localStorage.setItem('users', JSON.stringify(filtered));
+    // Delete user
+    const filteredUsers = users.filter(u => u.id !== userId);
+    localStorage.setItem('users', JSON.stringify(filteredUsers));
+
+    // Delete all transactions for this user
+    const filteredTransactions = transactions.filter(t => t.userId !== userId);
+    localStorage.setItem('transactions', JSON.stringify(filteredTransactions));
 
     renderUserList();
     populateUserSelectors();
+    renderTransactionList();
 }
 
 // Function to get user by ID
@@ -879,6 +885,36 @@ function importFromCSV(file) {
     reader.readAsText(file);
 }
 
+// Function to load demo data
+function loadDemoData() {
+    // Check if transactions already exist
+    const existingTransactions = loadTransactions();
+    if (existingTransactions.length > 0) {
+        alert('Error: Cannot load demo data. You already have saved transactions.\n\nPlease use "Clear All" to remove existing transactions first, or use "Import CSV" to add more data.');
+        return;
+    }
+
+    // Fetch and load demo-data.csv
+    fetch('demo-data.csv')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to load demo data file');
+            }
+            return response.text();
+        })
+        .then(csvContent => {
+            // Create a mock File object from the CSV content
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const file = new File([blob], 'demo-data.csv', { type: 'text/csv' });
+
+            // Use existing importFromCSV function
+            importFromCSV(file);
+        })
+        .catch(error => {
+            alert(`Failed to load demo data: ${error.message}`);
+        });
+}
+
 // ===========================
 // User List Display
 // ===========================
@@ -917,17 +953,16 @@ function renderUserList() {
                     <input type="text"
                            id="${nameId}"
                            value="${u.name}"
-                           class="input-inline"
-                           onblur="updateUserField('${u.id}', 'name', this.value)">
+                           class="input-inline">
                 </td>
                 <td>
                     <input type="text"
                            id="${taxpayerId}"
                            value="${u.taxpayerId}"
-                           class="input-inline"
-                           onblur="updateUserField('${u.id}', 'taxpayerId', this.value)">
+                           class="input-inline">
                 </td>
                 <td>
+                    <button class="btn btn-success btn-sm" onclick="saveUserFromInputs('${u.id}')">💾 Save</button>
                     <button class="btn btn-danger btn-sm" onclick="deleteUser('${u.id}')">🗑️</button>
                 </td>
             </tr>
@@ -937,9 +972,39 @@ function renderUserList() {
     tableHTML += `
             </tbody>
         </table>
+        <div class="action-toolbar" style="margin-top: 16px;">
+            <button class="btn btn-danger btn-sm" onclick="deleteAllUsers()">🗑️ Delete All Users</button>
+        </div>
     `;
 
     userListDiv.innerHTML = tableHTML;
+}
+
+// Function to save user from input fields
+function saveUserFromInputs(userId) {
+    const nameInput = document.getElementById(`userName-${userId}`);
+    const taxpayerIdInput = document.getElementById(`userTaxpayerId-${userId}`);
+
+    if (!nameInput || !taxpayerIdInput) {
+        alert('Error: Could not find input fields.');
+        return;
+    }
+
+    const name = nameInput.value.trim();
+    const taxpayerId = taxpayerIdInput.value.trim();
+
+    if (!name) {
+        alert('Error: User name cannot be empty.');
+        return;
+    }
+
+    const user = getUserById(userId);
+    if (user) {
+        user.name = name;
+        user.taxpayerId = taxpayerId;
+        saveUser(user);
+        alert('User updated successfully!');
+    }
 }
 
 // Function to update user field
@@ -1010,6 +1075,39 @@ function populateCurrencyFilter() {
 
         filterCurrency.value = currentFilter;
     }
+}
+
+// Function to delete all users
+function deleteAllUsers() {
+    const users = loadUsers();
+    const transactions = loadTransactions();
+
+    if (users.length === 0) {
+        alert('No users to delete.');
+        return;
+    }
+
+    const totalTransactions = transactions.length;
+    const confirmMessage = totalTransactions > 0
+        ? `Are you sure you want to delete all ${users.length} user(s) and all ${totalTransactions} transaction(s)? This action cannot be undone.`
+        : `Are you sure you want to delete all ${users.length} user(s)? This action cannot be undone.`;
+
+    if (!confirm(confirmMessage)) {
+        return;
+    }
+
+    // Create default user
+    const defaultUser = { id: 'user', name: 'user', taxpayerId: '' };
+    localStorage.setItem('users', JSON.stringify([defaultUser]));
+
+    // Clear all transactions
+    localStorage.setItem('transactions', JSON.stringify([]));
+
+    renderUserList();
+    populateUserSelectors();
+    renderTransactionList();
+
+    alert('All users and transactions have been deleted. A default user has been created.');
 }
 
 // Function to add new user

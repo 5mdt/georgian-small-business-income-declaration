@@ -195,6 +195,7 @@
                         <div class="action-toolbar">
                             <button class="btn btn-secondary btn-sm" onclick="exportToCSV()">⬇ Export CSV</button>
                             <button class="btn btn-secondary btn-sm" onclick="document.getElementById('csvFileInput').click()">⬆ Import CSV</button>
+                            <button class="btn btn-secondary btn-sm" onclick="loadDemoData()">📊 Load Demo Data</button>
                             <button class="btn btn-danger btn-sm" onclick="clearAllTransactions()">Clear All</button>
                             <button class="btn btn-secondary btn-sm" onclick="clearRateCache()">Clear Cache</button>
                             <input type="file" id="csvFileInput" accept=".csv" class="hidden" onchange="if(this.files.length) importFromCSV(this.files[0])">
