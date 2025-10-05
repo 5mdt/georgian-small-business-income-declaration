@@ -1,4 +1,4 @@
-# Currency to GEL Converter
+# Currency to GEL Converter ![icon](./favicon.png)
 
 A static web application for Georgian small business owners to track foreign currency income and convert it to Georgian Lari (GEL) using official National Bank of Georgia exchange rates for tax declaration purposes.
 
@@ -43,6 +43,7 @@ Simply open `index.html` in your web browser
 2. **Add User**: Click "+ Add User" to create new user profiles
 3. **Edit User**: Change name or taxpayer ID, then click "💾 Save"
 4. **Delete User**: Click "🗑️" to remove a user (also deletes all their transactions)
+   - **Note**: The default 'user' account cannot be deleted individually - create other users first
 5. **Delete All**: Use "🗑️ Delete All Users" to reset and start fresh
 
 #### Recording Transactions
@@ -74,6 +75,9 @@ pre-commit run --all-files
 
 # Run ESLint
 npx eslint *.js
+
+# Check JavaScript syntax
+node --check script.js
 ```
 
 ### Deployment
@@ -107,6 +111,7 @@ All data is stored exclusively in your browser's local storage. No information i
 
 - **Delete Transaction**: Individual transactions can be removed from the transaction list
 - **Delete User**: Removes user AND all associated transactions (requires confirmation)
+  - Protected: The default 'user' account cannot be deleted if it's the only user
 - **Delete All Users**: Removes all users and transactions, creates fresh default user
 - **Clear All Transactions**: Removes all transactions but keeps users
 - **Clear Cache**: Clears cached exchange rates (forces fresh API calls)

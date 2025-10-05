@@ -1,21 +1,210 @@
 // ===========================
+// Constants
+// ===========================
+
+const CURRENCY_SYMBOLS = {
+    'GEL': '₾', 'USD': '$', 'EUR': '€', 'GBP': '£', 'RUB': '₽',
+    'TRY': '₺', 'JPY': '¥', 'CNY': '¥', 'CHF': 'CHF', 'AUD': 'A$',
+    'CAD': 'C$', 'INR': '₹', 'KRW': '₩', 'BRL': 'R$', 'ZAR': 'R',
+    'SEK': 'kr', 'NOK': 'kr', 'DKK': 'kr', 'PLN': 'zł', 'ILS': '₪',
+    'AED': 'د.إ', 'SAR': '﷼', 'THB': '฿'
+};
+
+const ERROR_MESSAGES = {
+    NO_DATE: 'Please select a date.',
+    NO_CURRENCY: 'Please select a currency.',
+    INVALID_AMOUNT: 'Please enter a valid amount.',
+    FUTURE_DATE: 'Cannot select a future date. Please select today or an earlier date.',
+    INVALID_DATE: 'Invalid date format.',
+    CORRUPTED_DATA: 'Data storage corrupted. Resetting to defaults.',
+    QUOTA_EXCEEDED: 'Storage quota exceeded. Please export and clear old data.',
+    INVALID_CSV: 'Invalid CSV format. Missing required columns.',
+    API_ERROR: 'Failed to fetch exchange rates. Please try again.',
+    NO_CURRENCY_DATA: 'No valid currency data available.',
+    CURRENCY_NOT_FOUND: 'Selected currency not found.'
+};
+
+const MAX_AMOUNT = 1000000000;
+const MIN_YEAR = 2000;
+const API_TIMEOUT = 10000;
+const FILTER_DEBOUNCE_MS = 300;
+
+// ===========================
+// Storage Utilities
+// ===========================
+
+function getFromStorage(key, defaultValue = null) {
+    try {
+        const item = localStorage.getItem(key);
+        if (!item) return defaultValue;
+        return JSON.parse(item);
+    } catch (error) {
+        console.error(`Error reading from storage: ${key}`, error);
+        return defaultValue;
+    }
+}
+
+function saveToStorage(key, value) {
+    try {
+        const serialized = JSON.stringify(value);
+        localStorage.setItem(key, serialized);
+        return true;
+    } catch (error) {
+        if (error.name === 'QuotaExceededError') {
+            alert(ERROR_MESSAGES.QUOTA_EXCEEDED);
+        } else {
+            console.error(`Error saving to storage: ${key}`, error);
+        }
+        return false;
+    }
+}
+
+function removeFromStorage(key) {
+    try {
+        localStorage.removeItem(key);
+        return true;
+    } catch (error) {
+        console.error(`Error removing from storage: ${key}`, error);
+        return false;
+    }
+}
+
+// ===========================
+// Validation Utilities
+// ===========================
+
+function sanitizeInput(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function validateDateString(dateString) {
+    if (!dateString) return false;
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return false;
+    const year = date.getFullYear();
+    if (year < MIN_YEAR || year > 2100) return false;
+    return true;
+}
+
+function validateAmount(amount) {
+    if (typeof amount !== 'number') return false;
+    if (isNaN(amount) || !isFinite(amount)) return false;
+    if (amount <= 0 || amount > MAX_AMOUNT) return false;
+    return true;
+}
+
+function validateCurrencyCode(code) {
+    if (!code || typeof code !== 'string') return false;
+    return /^[A-Z]{3}$/.test(code);
+}
+
+function validateUser(user) {
+    if (!user || typeof user !== 'object') return false;
+    if (!user.id || typeof user.id !== 'string') return false;
+    if (!user.name || typeof user.name !== 'string') return false;
+    return true;
+}
+
+function validateTransaction(transaction) {
+    if (!transaction || typeof transaction !== 'object') return false;
+    if (!transaction.id || !transaction.userId) return false;
+    if (!validateDateString(transaction.date)) return false;
+    if (!validateCurrencyCode(transaction.currencyCode)) return false;
+    if (!validateAmount(transaction.amount)) return false;
+    if (!validateAmount(transaction.convertedGEL)) return false;
+    return true;
+}
+
+// ===========================
+// DOM Utilities
+// ===========================
+
+function createOption(value, text, selected = false) {
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = text;
+    if (selected) option.selected = true;
+    return option;
+}
+
+function showElement(element) {
+    if (element) element.classList.remove('hidden');
+}
+
+function hideElement(element) {
+    if (element) element.classList.add('hidden');
+}
+
+function showError(elementId, message) {
+    const element = document.getElementById(elementId);
+    if (!element) return;
+    element.textContent = message;
+    showElement(element);
+}
+
+function hideError(elementId) {
+    const element = document.getElementById(elementId);
+    if (!element) return;
+    element.textContent = '';
+    hideElement(element);
+}
+
+// ===========================
+// Performance Utilities
+// ===========================
+
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+function buildUserLookupMap(users) {
+    return new Map(users.map(u => [u.id, u]));
+}
+
+// ===========================
 // User Management
 // ===========================
 
-// Function to load all users from localStorage
-function loadUsers() {
-    const stored = localStorage.getItem('users');
-    if (!stored) {
-        // Create default user
-        const defaultUser = { id: 'user', name: 'user', taxpayerId: '' };
-        localStorage.setItem('users', JSON.stringify([defaultUser]));
-        return [defaultUser];
-    }
-    return JSON.parse(stored);
+function createDefaultUser() {
+    return { id: 'user', name: 'user', taxpayerId: '' };
 }
 
-// Function to save a user to localStorage
-function saveUser(userData) {
+function loadUsers() {
+    const users = getFromStorage('users');
+
+    if (!users || !Array.isArray(users) || users.length === 0) {
+        const defaultUser = createDefaultUser();
+        saveToStorage('users', [defaultUser]);
+        return [defaultUser];
+    }
+
+    const validUsers = users.filter(validateUser);
+    if (validUsers.length === 0) {
+        const defaultUser = createDefaultUser();
+        saveToStorage('users', [defaultUser]);
+        return [defaultUser];
+    }
+
+    return validUsers;
+}
+
+function updateUserInStorage(userData) {
+    if (!validateUser(userData)) {
+        console.error('Invalid user data', userData);
+        return false;
+    }
+
     const users = loadUsers();
     const existingIndex = users.findIndex(u => u.id === userData.id);
 
@@ -25,41 +214,83 @@ function saveUser(userData) {
         users.push(userData);
     }
 
-    localStorage.setItem('users', JSON.stringify(users));
+    return saveToStorage('users', users);
+}
+
+function triggerUserUIRefresh() {
     renderUserList();
     populateUserSelectors();
 }
 
-// Function to delete a user by ID
+function saveUser(userData) {
+    const success = updateUserInStorage(userData);
+    if (success) {
+        triggerUserUIRefresh();
+    }
+    return success;
+}
+
+function canDeleteUser(userId, users, transactions) {
+    if (userId === 'user') {
+        return { allowed: false, reason: 'Cannot delete the default user. Please create another user first.' };
+    }
+
+    if (users.length <= 1) {
+        return { allowed: false, reason: 'Cannot delete the last user.' };
+    }
+
+    const userTransactions = transactions.filter(t => t.userId === userId);
+    if (userTransactions.length > 0) {
+        const confirmed = confirm(
+            `This user has ${userTransactions.length} transaction(s). Delete user and all associated transactions?`
+        );
+        if (!confirmed) {
+            return { allowed: false, reason: 'User cancelled operation.' };
+        }
+    }
+
+    return { allowed: true };
+}
+
+function removeUserFromStorage(userId) {
+    const users = loadUsers();
+    const filteredUsers = users.filter(u => u.id !== userId);
+    return saveToStorage('users', filteredUsers);
+}
+
+function removeUserTransactions(userId) {
+    const transactions = loadTransactions();
+    const filteredTransactions = transactions.filter(t => t.userId !== userId);
+    return saveToStorage('transactions', filteredTransactions);
+}
+
+function triggerDataRefresh() {
+    renderUserList();
+    populateUserSelectors();
+    renderTransactionList();
+}
+
 function deleteUser(userId) {
     const users = loadUsers();
     const transactions = loadTransactions();
 
-    // Check if user has transactions
-    const userTransactions = transactions.filter(t => t.userId === userId);
-    if (userTransactions.length > 0) {
-        if (!confirm(`This user has ${userTransactions.length} transaction(s). Delete user and all associated transactions?`)) {
-            return;
+    const check = canDeleteUser(userId, users, transactions);
+    if (!check.allowed) {
+        if (check.reason && !check.reason.includes('cancelled')) {
+            alert(check.reason);
         }
+        return false;
     }
 
-    // Prevent deleting last user
-    if (users.length <= 1) {
-        alert('Cannot delete the last user.');
-        return;
+    const userDeleted = removeUserFromStorage(userId);
+    const transactionsDeleted = removeUserTransactions(userId);
+
+    if (userDeleted && transactionsDeleted) {
+        triggerDataRefresh();
+        return true;
     }
 
-    // Delete user
-    const filteredUsers = users.filter(u => u.id !== userId);
-    localStorage.setItem('users', JSON.stringify(filteredUsers));
-
-    // Delete all transactions for this user
-    const filteredTransactions = transactions.filter(t => t.userId !== userId);
-    localStorage.setItem('transactions', JSON.stringify(filteredTransactions));
-
-    renderUserList();
-    populateUserSelectors();
-    renderTransactionList();
+    return false;
 }
 
 // Function to get user by ID
@@ -77,60 +308,63 @@ function generateUserId() {
 // Transaction Management
 // ===========================
 
-// Function to generate unique transaction ID
 function generateTransactionId() {
     return Date.now().toString(36) + Math.random().toString(36).substr(2);
 }
 
-// Function to format currency with thousand separators
 function formatCurrency(value) {
+    if (!isFinite(value)) return '0.00';
     return value.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 }
 
-// Function to get currency symbol
 function getCurrencySymbol(currencyCode) {
-    const symbols = {
-        'GEL': '₾',
-        'USD': '$',
-        'EUR': '€',
-        'GBP': '£',
-        'RUB': '₽',
-        'TRY': '₺',
-        'JPY': '¥',
-        'CNY': '¥',
-        'CHF': 'CHF',
-        'AUD': 'A$',
-        'CAD': 'C$',
-        'INR': '₹',
-        'KRW': '₩',
-        'BRL': 'R$',
-        'ZAR': 'R',
-        'SEK': 'kr',
-        'NOK': 'kr',
-        'DKK': 'kr',
-        'PLN': 'zł',
-        'ILS': '₪',
-        'AED': 'د.إ',
-        'SAR': '﷼',
-        'THB': '฿'
-    };
-    return symbols[currencyCode] || currencyCode;
+    return CURRENCY_SYMBOLS[currencyCode] || currencyCode;
 }
 
-// Function to calculate Year-to-Date income for a specific transaction
-function calculateYTDForTransaction(transaction, allTransactions) {
-    const year = new Date(transaction.date).getFullYear();
+function precalculateAllYTD(transactions) {
+    const ytdCache = new Map();
+    const sorted = [...transactions].sort((a, b) => {
+        if (a.userId !== b.userId) return a.userId.localeCompare(b.userId);
+        if (a.date !== b.date) return a.date.localeCompare(b.date);
+        return (a.timestamp || '').localeCompare(b.timestamp || '');
+    });
 
-    // Filter transactions for same user and year, up to and including current date
+    const runningTotals = {};
+
+    for (const tx of sorted) {
+        if (!validateTransaction(tx)) continue;
+
+        const year = new Date(tx.date).getFullYear();
+        const key = `${tx.userId}_${year}`;
+
+        if (runningTotals[key] === undefined) {
+            runningTotals[key] = 0;
+        }
+
+        runningTotals[key] += tx.convertedGEL;
+        ytdCache.set(tx.id, runningTotals[key]);
+    }
+
+    return ytdCache;
+}
+
+function calculateYTDForTransaction(transaction, allTransactions) {
+    if (!validateTransaction(transaction)) return 0;
+
+    const year = new Date(transaction.date).getFullYear();
     const ytdTransactions = allTransactions.filter(t => {
+        if (!validateTransaction(t)) return false;
         const tYear = new Date(t.date).getFullYear();
         return t.userId === transaction.userId &&
             tYear === year &&
             t.date <= transaction.date;
     });
 
-    // Sort by date and calculate running total
-    ytdTransactions.sort((a, b) => new Date(a.date) - new Date(b.date));
+    ytdTransactions.sort((a, b) => {
+        const dateCompare = a.date.localeCompare(b.date);
+        if (dateCompare !== 0) return dateCompare;
+        return (a.timestamp || '').localeCompare(b.timestamp || '');
+    });
 
     let runningTotal = 0;
     for (const t of ytdTransactions) {
@@ -143,75 +377,89 @@ function calculateYTDForTransaction(transaction, allTransactions) {
     return runningTotal;
 }
 
-// Function to save a transaction to localStorage
-function saveTransaction(transactionData) {
+function loadTransactions() {
+    const transactions = getFromStorage('transactions', []);
+    if (!Array.isArray(transactions)) return [];
+    return transactions.filter(validateTransaction);
+}
+
+function addTransactionToStorage(transactionData) {
+    if (!validateTransaction(transactionData)) {
+        console.error('Invalid transaction data', transactionData);
+        return false;
+    }
+
     const transactions = loadTransactions();
     transactions.push(transactionData);
-    localStorage.setItem('transactions', JSON.stringify(transactions));
-    renderTransactionList();
+    return saveToStorage('transactions', transactions);
 }
 
-// Function to load all transactions from localStorage
-function loadTransactions() {
-    const stored = localStorage.getItem('transactions');
-    return stored ? JSON.parse(stored) : [];
+function saveTransaction(transactionData) {
+    const success = addTransactionToStorage(transactionData);
+    if (success) {
+        renderTransactionList();
+    }
+    return success;
 }
 
-// Function to delete a transaction by ID
 function deleteTransaction(id) {
     const transactions = loadTransactions();
     const filtered = transactions.filter(t => t.id !== id);
-    localStorage.setItem('transactions', JSON.stringify(filtered));
-    renderTransactionList();
+    const success = saveToStorage('transactions', filtered);
+    if (success) {
+        renderTransactionList();
+    }
+    return success;
 }
 
-// Function to update transaction comment
 function updateTransactionComment(id, newComment) {
     const transactions = loadTransactions();
     const transaction = transactions.find(t => t.id === id);
-    if (transaction) {
-        transaction.comment = newComment;
-        localStorage.setItem('transactions', JSON.stringify(transactions));
+
+    if (!transaction) return false;
+
+    transaction.comment = sanitizeInput(newComment);
+    const success = saveToStorage('transactions', transactions);
+
+    if (success) {
         renderTransactionList();
     }
+    return success;
 }
 
-// Function to clear all transactions
 function clearAllTransactions() {
-    if (confirm('Are you sure you want to delete all transactions?')) {
-        localStorage.removeItem('transactions');
+    if (!confirm('Are you sure you want to delete all transactions?')) return false;
+
+    const success = removeFromStorage('transactions');
+    if (success) {
         renderTransactionList();
     }
+    return success;
 }
 
-// Function to clear all cached currency rates
 function clearRateCache() {
-    if (confirm('Are you sure you want to clear all cached exchange rates?')) {
-        const keys = Object.keys(localStorage);
-        keys.forEach(key => {
-            if (key.startsWith('currencyRates_')) {
-                localStorage.removeItem(key);
-            }
-        });
-        alert('Exchange rate cache cleared successfully.');
-    }
+    if (!confirm('Are you sure you want to clear all cached exchange rates?')) return false;
+
+    const keys = Object.keys(localStorage);
+    const rateKeys = keys.filter(key => key.startsWith('currencyRates_'));
+
+    rateKeys.forEach(key => removeFromStorage(key));
+    alert('Exchange rate cache cleared successfully.');
+    return true;
 }
 
-// Function to save checkbox state
 function saveCheckboxState() {
     const checkbox = document.getElementById('addTransactionCheckbox');
-    localStorage.setItem('addTransaction', checkbox.checked);
+    if (!checkbox) return;
+    saveToStorage('addTransaction', checkbox.checked);
 }
 
-// Function to load checkbox state
 function loadCheckboxState() {
     const checkbox = document.getElementById('addTransactionCheckbox');
-    const storedState = localStorage.getItem('addTransaction');
-    if (storedState === 'true') {
-        checkbox.checked = true;
-    } else {
-        checkbox.checked = false;
-    }
+    if (!checkbox) return;
+
+    const storedState = getFromStorage('addTransaction', false);
+    checkbox.checked = storedState === true;
 }
 
 // ===========================
@@ -256,156 +504,194 @@ function restoreCollapsibleStates() {
     });
 }
 
-// Load checkbox state on page load
-window.onload = function () {
-    loadCheckboxState();
-    document.getElementById('datePicker').value = new Date().toISOString().split('T')[0];
-    loadCurrencies();
+function clearConversionUI() {
+    const resultDiv = document.getElementById('result');
+    const errorMessage = document.getElementById('errorMessage');
+    const loadingMessage = document.getElementById('loadingMessage');
 
-    // Save checkbox state when changed
-    document.getElementById('addTransactionCheckbox').addEventListener('change', saveCheckboxState);
-};
+    if (resultDiv) {
+        resultDiv.innerHTML = '';
+        hideElement(resultDiv);
+    }
+    hideError('errorMessage');
+    hideElement(loadingMessage);
+}
 
-// Modify button behavior based on checkbox state
+function validateConversionInputs(date, currencyCode, amount) {
+    if (!date) {
+        showError('errorMessage', ERROR_MESSAGES.NO_DATE);
+        return false;
+    }
+    if (!currencyCode) {
+        showError('errorMessage', ERROR_MESSAGES.NO_CURRENCY);
+        return false;
+    }
+    if (isNaN(amount) || amount <= 0) {
+        showError('errorMessage', ERROR_MESSAGES.INVALID_AMOUNT);
+        return false;
+    }
+    return true;
+}
+
+function getCurrencyRatesFromCache(date) {
+    return getFromStorage(`currencyRates_${date}`);
+}
+
+function saveCurrencyRatesToCache(date, data) {
+    saveToStorage(`currencyRates_${date}`, data);
+}
+
+function fetchCurrencyRates(date) {
+    const apiUrl = `https://nbg.gov.ge/gw/api/ct/monetarypolicy/currencies/en/json/?date=${date}`;
+
+    return fetch(apiUrl, { timeout: API_TIMEOUT })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(ERROR_MESSAGES.API_ERROR);
+            }
+            return response.json();
+        })
+        .then(data => {
+            saveCurrencyRatesToCache(date, data);
+            return data;
+        });
+}
+
+function handleConversionError(error) {
+    const loadingMessage = document.getElementById('loadingMessage');
+    hideElement(loadingMessage);
+    showError('errorMessage', `Error: ${error.message}`);
+}
+
 document.getElementById('fetchButton').addEventListener('click', function () {
     const date = document.getElementById('datePicker').value;
     const currencyCode = document.getElementById('currencySelect').value;
     const amount = parseFloat(document.getElementById('amountInput').value);
-    const errorMessage = document.getElementById('errorMessage');
+    const checkbox = document.getElementById('addTransactionCheckbox');
     const resultDiv = document.getElementById('result');
     const loadingMessage = document.getElementById('loadingMessage');
-    const checkbox = document.getElementById('addTransactionCheckbox');
+    const errorMessage = document.getElementById('errorMessage');
 
-    // Clear previous results
-    resultDiv.innerHTML = '';
-    resultDiv.classList.add('hidden');
-    errorMessage.textContent = '';
-    errorMessage.classList.add('hidden');
-    loadingMessage.classList.add('hidden');
+    clearConversionUI();
 
-    // Input validation
-    if (!date) {
-        errorMessage.textContent = 'Please select a date.';
-        return;
-    }
-    if (!currencyCode) {
-        errorMessage.textContent = 'Please select a currency.';
-        return;
-    }
-    if (isNaN(amount) || amount <= 0) {
-        errorMessage.textContent = 'Please enter a valid amount.';
+    if (!validateConversionInputs(date, currencyCode, amount)) {
         return;
     }
 
-    // Show loading message
-    loadingMessage.classList.remove('hidden');
+    showElement(loadingMessage);
 
-    // Check if data is cached in localStorage
-    const cachedData = localStorage.getItem(`currencyRates_${date}`);
+    const cachedData = getCurrencyRatesFromCache(date);
     if (cachedData) {
-        // Use cached data
-        handleCurrencyData(JSON.parse(cachedData), amount, currencyCode, resultDiv, loadingMessage, errorMessage, checkbox.checked);
-    } else {
-        // Fetch data
-        const apiUrl = `https://nbg.gov.ge/gw/api/ct/monetarypolicy/currencies/en/json/?date=${date}`;
-        fetch(apiUrl)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`API error: ${response.statusText}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                // Cache data in localStorage
-                localStorage.setItem(`currencyRates_${date}`, JSON.stringify(data));
-
-                handleCurrencyData(data, amount, currencyCode, resultDiv, loadingMessage, errorMessage, checkbox.checked);
-            })
-            .catch(error => {
-                loadingMessage.classList.add('hidden');
-                errorMessage.textContent = `Error: ${error.message}`;
-                errorMessage.classList.remove('hidden');
-            });
+        handleCurrencyData(cachedData, amount, currencyCode, resultDiv, loadingMessage, errorMessage, checkbox.checked);
+        return;
     }
+
+    fetchCurrencyRates(date)
+        .then(data => {
+            handleCurrencyData(data, amount, currencyCode, resultDiv, loadingMessage, errorMessage, checkbox.checked);
+        })
+        .catch(handleConversionError);
 });
 
 // Function to handle currency data
-function handleCurrencyData(data, amount, currencyCode, resultDiv, loadingMessage, errorMessage, addAsTransaction) {
-    loadingMessage.classList.add('hidden');
+function createGELCurrencyObject() {
+    return {
+        code: 'GEL',
+        name: 'Georgian Lari',
+        rate: 1,
+        quantity: 1,
+        rateFormated: '1.0000'
+    };
+}
 
-    let selectedCurrency;
-    let convertedAmount;
-
-    // Handle GEL (no conversion needed)
-    if (currencyCode === 'GEL') {
-        selectedCurrency = {
-            code: 'GEL',
-            name: 'Georgian Lari',
-            rate: 1,
-            quantity: 1,
-            rateFormated: '1.0000'
-        };
-        convertedAmount = amount.toFixed(2);
-    } else {
-        if (!Array.isArray(data) || data.length === 0 || !data[0].currencies) {
-            throw new Error('No valid currency data available.');
-        }
-
-        // Extract currency data
-        const currencies = data[0].currencies;
-        selectedCurrency = currencies.find(c => c.code === currencyCode);
-
-        if (!selectedCurrency) {
-            throw new Error('Selected currency not found.');
-        }
-
-        // Perform conversion to GEL using the correct formula: rate / quantity
-        convertedAmount = (amount * selectedCurrency.rate / selectedCurrency.quantity).toFixed(2);
+function validateCurrencyResponse(data) {
+    if (!Array.isArray(data) || data.length === 0 || !data[0].currencies) {
+        throw new Error(ERROR_MESSAGES.NO_CURRENCY_DATA);
     }
+}
+
+function findCurrencyInData(data, currencyCode) {
+    if (currencyCode === 'GEL') {
+        return createGELCurrencyObject();
+    }
+
+    validateCurrencyResponse(data);
+    const currencies = data[0].currencies;
+    const selectedCurrency = currencies.find(c => c.code === currencyCode);
+
+    if (!selectedCurrency) {
+        throw new Error(ERROR_MESSAGES.CURRENCY_NOT_FOUND);
+    }
+
+    return selectedCurrency;
+}
+
+function convertToGEL(amount, currency) {
+    if (currency.code === 'GEL') {
+        return amount;
+    }
+    return amount * currency.rate / currency.quantity;
+}
+
+function createTransactionFromConversion(currency, amount, convertedGEL, date, userId) {
+    return {
+        id: generateTransactionId(),
+        userId: userId,
+        date: date,
+        currencyCode: currency.code,
+        currencyName: currency.name,
+        amount: amount,
+        rate: currency.rate,
+        quantity: currency.quantity,
+        convertedGEL: convertedGEL,
+        comment: '',
+        timestamp: new Date().toISOString()
+    };
+}
+
+function displayConversionResult(resultDiv, amount, currencyCode, convertedGEL, currency, isTransaction) {
+    if (isTransaction) {
+        resultDiv.innerHTML = `
+            <p><strong>Transaction Added:</strong> ${formatCurrency(amount)} ${currencyCode} = ${formatCurrency(convertedGEL)} GEL</p>
+        `;
+    } else if (currencyCode === 'GEL') {
+        resultDiv.innerHTML = `
+            <p><strong>${formatCurrency(amount)} GEL</strong></p>
+        `;
+    } else {
+        resultDiv.innerHTML = `
+            <p><strong>${formatCurrency(amount)} ${currencyCode}</strong> = <strong>${formatCurrency(convertedGEL)} GEL</strong></p>
+            <p>Exchange Rate: <strong>${currency.rateFormated}</strong></p>
+            <p>Quantity Factor: <strong>${currency.quantity}</strong></p>
+        `;
+    }
+    showElement(resultDiv);
+}
+
+function handleCurrencyData(data, amount, currencyCode, resultDiv, loadingMessage, errorMessage, addAsTransaction) {
+    hideElement(loadingMessage);
+
+    const selectedCurrency = findCurrencyInData(data, currencyCode);
+    const convertedGEL = convertToGEL(amount, selectedCurrency);
 
     const transactionDate = document.getElementById('datePicker').value;
 
-    // Display result
     if (addAsTransaction) {
-        // Get selected user
         const userSelect = document.getElementById('userSelect');
         const selectedUserId = userSelect ? userSelect.value : 'user';
 
-        // Create transaction object
-        const transaction = {
-            id: generateTransactionId(),
-            userId: selectedUserId,
-            date: transactionDate,
-            currencyCode: currencyCode,
-            currencyName: selectedCurrency.name,
-            amount: amount,
-            rate: selectedCurrency.rate,
-            quantity: selectedCurrency.quantity,
-            convertedGEL: parseFloat(convertedAmount),
-            comment: '',
-            timestamp: new Date().toISOString()
-        };
+        const transaction = createTransactionFromConversion(
+            selectedCurrency,
+            amount,
+            convertedGEL,
+            transactionDate,
+            selectedUserId
+        );
 
-        // Save transaction to localStorage
         saveTransaction(transaction);
-
-        resultDiv.innerHTML = `
-            <p><strong>Transaction Added:</strong> ${formatCurrency(amount)} ${currencyCode} = ${formatCurrency(parseFloat(convertedAmount))} GEL</p>
-        `;
-    } else {
-        if (currencyCode === 'GEL') {
-            resultDiv.innerHTML = `
-                <p><strong>${formatCurrency(amount)} GEL</strong></p>
-            `;
-        } else {
-            resultDiv.innerHTML = `
-                <p><strong>${formatCurrency(amount)} ${currencyCode}</strong> = <strong>${formatCurrency(parseFloat(convertedAmount))} GEL</strong></p>
-                <p>Exchange Rate: <strong>${selectedCurrency.rateFormated}</strong></p>
-                <p>Quantity Factor: <strong>${selectedCurrency.quantity}</strong></p>
-            `;
-        }
     }
-    resultDiv.classList.remove('hidden');
+
+    displayConversionResult(resultDiv, amount, currencyCode, convertedGEL, selectedCurrency, addAsTransaction);
 }
 // Load currencies when date is selected
 document.getElementById('datePicker').addEventListener('change', function () {
@@ -543,48 +829,35 @@ function applyFilters(transactions) {
     return filtered;
 }
 
-// Function to sort transactions
-function sortTransactions(transactions) {
-    const sorted = [...transactions];
+const SORT_STRATEGIES = {
+    date: (a, b) => new Date(a.date) - new Date(b.date),
+    user: (a, b, userMap) => {
+        const userA = userMap.get(a.userId);
+        const userB = userMap.get(b.userId);
+        const nameA = userA ? userA.name : '';
+        const nameB = userB ? userB.name : '';
+        return nameA.localeCompare(nameB);
+    },
+    currency: (a, b) => a.currencyCode.localeCompare(b.currencyCode),
+    amount: (a, b) => a.amount - b.amount,
+    gel: (a, b) => a.convertedGEL - b.convertedGEL,
+    ytd: (a, b, userMap, ytdCache) => {
+        const ytdA = ytdCache.get(a.id) || 0;
+        const ytdB = ytdCache.get(b.id) || 0;
+        return ytdA - ytdB;
+    }
+};
+
+function sortTransactions(transactions, userMap, ytdCache) {
+    const sortStrategy = SORT_STRATEGIES[filterState.sortColumn];
+    if (!sortStrategy) return [...transactions];
+
     const direction = filterState.sortDirection === 'asc' ? 1 : -1;
+    const sorted = [...transactions];
 
     sorted.sort((a, b) => {
-        let aVal, bVal;
-
-        switch (filterState.sortColumn) {
-            case 'date':
-                aVal = new Date(a.date);
-                bVal = new Date(b.date);
-                break;
-            case 'user':
-                const userA = getUserById(a.userId);
-                const userB = getUserById(b.userId);
-                aVal = userA ? userA.name : '';
-                bVal = userB ? userB.name : '';
-                return aVal.localeCompare(bVal) * direction;
-            case 'currency':
-                aVal = a.currencyCode;
-                bVal = b.currencyCode;
-                return aVal.localeCompare(bVal) * direction;
-            case 'amount':
-                aVal = a.amount;
-                bVal = b.amount;
-                break;
-            case 'gel':
-                aVal = a.convertedGEL;
-                bVal = b.convertedGEL;
-                break;
-            case 'ytd':
-                aVal = calculateYTDForTransaction(a, transactions);
-                bVal = calculateYTDForTransaction(b, transactions);
-                break;
-            default:
-                return 0;
-        }
-
-        if (aVal < bVal) return -1 * direction;
-        if (aVal > bVal) return 1 * direction;
-        return 0;
+        const result = sortStrategy(a, b, userMap, ytdCache);
+        return result * direction;
     });
 
     return sorted;
@@ -630,94 +903,108 @@ function clearFilters() {
 // Transaction List Display
 // ===========================
 
-// Function to render transaction list
-function renderTransactionList() {
-    const allTransactions = loadTransactions();
-    const transactionListDiv = document.getElementById('transactionList');
+function getSortIndicator(column) {
+    if (filterState.sortColumn !== column) return '';
+    return filterState.sortDirection === 'asc' ? ' ▲' : ' ▼';
+}
 
+function buildTransactionTableHeader() {
+    return `
+        <thead>
+            <tr>
+                <th onclick="toggleSort('date')" class="sortable">Date${getSortIndicator('date')}</th>
+                <th onclick="toggleSort('user')" class="sortable">User${getSortIndicator('user')}</th>
+                <th onclick="toggleSort('currency')" class="sortable">Currency${getSortIndicator('currency')}</th>
+                <th onclick="toggleSort('amount')" class="sortable">Amount${getSortIndicator('amount')}</th>
+                <th>Rate</th>
+                <th onclick="toggleSort('gel')" class="sortable">GEL Amount${getSortIndicator('gel')}</th>
+                <th onclick="toggleSort('ytd')" class="sortable">YTD Income${getSortIndicator('ytd')}</th>
+                <th>Comment</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+    `;
+}
+
+function buildTransactionTableRow(transaction, userMap, ytdCache) {
+    const user = userMap.get(transaction.userId);
+    const userName = user ? user.name : 'Unknown';
+    const ytdIncome = ytdCache.get(transaction.id) || 0;
+    const currencySymbol = getCurrencySymbol(transaction.currencyCode);
+    const commentId = `comment-${transaction.id}`;
+    const rate = (transaction.rate / transaction.quantity).toFixed(4);
+
+    return `
+        <tr>
+            <td>${sanitizeInput(transaction.date)}</td>
+            <td>${sanitizeInput(userName)}</td>
+            <td>${sanitizeInput(transaction.currencyCode)} - ${sanitizeInput(transaction.currencyName)}</td>
+            <td>${currencySymbol} ${formatCurrency(transaction.amount)}</td>
+            <td>${rate}</td>
+            <td>₾ ${formatCurrency(transaction.convertedGEL)}</td>
+            <td><strong>₾ ${formatCurrency(ytdIncome)}</strong></td>
+            <td>
+                <input type="text"
+                        id="${commentId}"
+                        value="${sanitizeInput(transaction.comment || '')}"
+                        placeholder="Add comment..."
+                        class="input-inline"
+                        onblur="updateTransactionComment('${transaction.id}', this.value)">
+            </td>
+            <td>
+                <button class="btn btn-danger btn-sm" onclick="deleteTransaction('${transaction.id}')">🗑️</button>
+            </td>
+        </tr>
+    `;
+}
+
+function buildTransactionTableFooter(totalGEL) {
+    return `
+        <tfoot>
+            <tr>
+                <td colspan="5"><strong>Total GEL:</strong></td>
+                <td colspan="4"><strong>₾ ${formatCurrency(totalGEL)}</strong></td>
+            </tr>
+        </tfoot>
+    `;
+}
+
+function buildTransactionTable(transactions, userMap, ytdCache, filterStatus) {
+    const header = buildTransactionTableHeader();
+    const rows = transactions.map(t => buildTransactionTableRow(t, userMap, ytdCache)).join('');
+    const totalGEL = transactions.reduce((sum, t) => sum + t.convertedGEL, 0);
+    const footer = buildTransactionTableFooter(totalGEL);
+
+    return `
+        <p class="filter-status">${filterStatus}</p>
+        <table>
+            ${header}
+            <tbody>${rows}</tbody>
+            ${footer}
+        </table>
+    `;
+}
+
+function renderTransactionList() {
+    const transactionListDiv = document.getElementById('transactionList');
     if (!transactionListDiv) return;
+
+    const allTransactions = loadTransactions();
 
     if (allTransactions.length === 0) {
         transactionListDiv.innerHTML = '<p class="no-data">No transactions recorded yet.</p>';
         return;
     }
 
-    // Apply filters and sort
+    const users = loadUsers();
+    const userMap = buildUserLookupMap(users);
+    const ytdCache = precalculateAllYTD(allTransactions);
+
     let transactions = applyFilters(allTransactions);
-    transactions = sortTransactions(transactions);
+    transactions = sortTransactions(transactions, userMap, ytdCache);
 
-    // Calculate total GEL for filtered results
-    const totalGEL = transactions.reduce((sum, t) => sum + t.convertedGEL, 0).toFixed(2);
-
-    // Show filter status
     const filterStatus = `Showing ${transactions.length} of ${allTransactions.length} transactions`;
-
-    // Get sort indicators
-    const getSortIndicator = (column) => {
-        if (filterState.sortColumn !== column) return '';
-        return filterState.sortDirection === 'asc' ? ' ▲' : ' ▼';
-    };
-
-    let tableHTML = `
-        <p class="filter-status">${filterStatus}</p>
-        <table>
-            <thead>
-                <tr>
-                    <th onclick="toggleSort('date')" class="sortable">Date${getSortIndicator('date')}</th>
-                    <th onclick="toggleSort('user')" class="sortable">User${getSortIndicator('user')}</th>
-                    <th onclick="toggleSort('currency')" class="sortable">Currency${getSortIndicator('currency')}</th>
-                    <th onclick="toggleSort('amount')" class="sortable">Amount${getSortIndicator('amount')}</th>
-                    <th>Rate</th>
-                    <th onclick="toggleSort('gel')" class="sortable">GEL Amount${getSortIndicator('gel')}</th>
-                    <th onclick="toggleSort('ytd')" class="sortable">YTD Income${getSortIndicator('ytd')}</th>
-                    <th>Comment</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-    `;
-
-    transactions.forEach(t => {
-        const commentId = `comment-${t.id}`;
-        const user = getUserById(t.userId);
-        const userName = user ? user.name : 'Unknown';
-        const ytdIncome = calculateYTDForTransaction(t, allTransactions);
-        const currencySymbol = getCurrencySymbol(t.currencyCode);
-
-        tableHTML += `
-            <tr>
-                <td>${t.date}</td>
-                <td>${userName}</td>
-                <td>${t.currencyCode} - ${t.currencyName}</td>
-                <td>${currencySymbol} ${formatCurrency(t.amount)}</td>
-                <td>${(t.rate / t.quantity).toFixed(4)}</td>
-                <td>₾ ${formatCurrency(t.convertedGEL)}</td>
-                <td><strong>₾ ${formatCurrency(ytdIncome)}</strong></td>
-                <td>
-                    <input type="text"
-                            id="${commentId}"
-                            value="${t.comment || ''}"
-                            placeholder="Add comment..."
-                            class="input-inline"
-                            onblur="updateTransactionComment('${t.id}', this.value)">
-                </td>
-                <td>
-                    <button class="btn btn-danger btn-sm" onclick="deleteTransaction('${t.id}')">🗑️</button>
-                </td>
-            </tr>
-        `;
-    });
-
-    tableHTML += `
-            </tbody>
-            <tfoot>
-                <tr>
-                    <td colspan="5"><strong>Total GEL:</strong></td>
-                    <td colspan="4"><strong>₾ ${formatCurrency(parseFloat(totalGEL))}</strong></td>
-                </tr>
-            </tfoot>
-        </table>
-    `;
+    const tableHTML = buildTransactionTable(transactions, userMap, ytdCache, filterStatus);
 
     transactionListDiv.innerHTML = tableHTML;
 }
@@ -784,95 +1071,150 @@ function exportToCSV() {
 }
 
 // Function to import transactions from CSV
+function validateCSVHeader(header) {
+    const requiredColumns = ['Date', 'Currency Code', 'Converted GEL'];
+    const missingColumns = requiredColumns.filter(col => !header.includes(col));
+
+    if (missingColumns.length > 0) {
+        throw new Error(ERROR_MESSAGES.INVALID_CSV);
+    }
+    return true;
+}
+
+function parseCSVLine(line) {
+    const regex = /("([^"]|"")*"|[^,]+)/g;
+    const values = [];
+    let match;
+
+    while ((match = regex.exec(line)) !== null) {
+        let value = match[0];
+        if (value.startsWith('"') && value.endsWith('"')) {
+            value = value.slice(1, -1).replace(/""/g, '"');
+        }
+        values.push(value);
+    }
+
+    return values;
+}
+
+function validateCSVRow(values) {
+    if (values.length < 12) return false;
+    if (!validateDateString(values[0])) return false;
+    if (!validateCurrencyCode(values[4])) return false;
+    if (isNaN(parseFloat(values[6])) || isNaN(parseFloat(values[9]))) return false;
+    return true;
+}
+
+function extractTransactionFromCSVRow(values) {
+    const hasYTD = values.length >= 13;
+
+    return {
+        id: generateTransactionId(),
+        userId: values[1],
+        date: values[0],
+        currencyCode: values[4],
+        currencyName: values[5],
+        amount: parseFloat(values[6]),
+        rate: parseFloat(values[7]),
+        quantity: parseFloat(values[8]),
+        convertedGEL: parseFloat(values[9]),
+        comment: sanitizeInput(hasYTD ? values[11] : values[10]),
+        timestamp: hasYTD ? values[12] : values[11]
+    };
+}
+
+function ensureUserExistsFromCSV(userId, userName, taxpayerId, users, userIds) {
+    if (userIds.has(userId)) {
+        return { created: false };
+    }
+
+    const newUser = {
+        id: userId,
+        name: sanitizeInput(userName),
+        taxpayerId: sanitizeInput(taxpayerId)
+    };
+
+    if (validateUser(newUser)) {
+        users.push(newUser);
+        userIds.add(userId);
+        return { created: true, user: newUser };
+    }
+
+    return { created: false, error: 'Invalid user data' };
+}
+
+function processCSVContent(content) {
+    const lines = content.split('\n');
+    const header = lines[0].trim();
+
+    validateCSVHeader(header);
+
+    const existingTransactions = loadTransactions();
+    const existingTimestamps = new Set(existingTransactions.map(t => t.timestamp));
+    const users = loadUsers();
+    const userIds = new Set(users.map(u => u.id));
+
+    const stats = { imported: 0, skipped: 0, usersCreated: 0 };
+
+    for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        const values = parseCSVLine(line);
+        if (!validateCSVRow(values)) continue;
+
+        const hasYTD = values.length >= 13;
+        const timestamp = hasYTD ? values[12] : values[11];
+
+        if (existingTimestamps.has(timestamp)) {
+            stats.skipped++;
+            continue;
+        }
+
+        const userResult = ensureUserExistsFromCSV(
+            values[1],
+            values[2],
+            values[3],
+            users,
+            userIds
+        );
+
+        if (userResult.created) {
+            stats.usersCreated++;
+        }
+
+        const transaction = extractTransactionFromCSVRow(values);
+        existingTransactions.push(transaction);
+        stats.imported++;
+    }
+
+    saveToStorage('users', users);
+    saveToStorage('transactions', existingTransactions);
+
+    return stats;
+}
+
 function importFromCSV(file) {
+    if (!file) {
+        alert('No file selected.');
+        return;
+    }
+
     const reader = new FileReader();
 
     reader.onload = function (e) {
         try {
             const content = e.target.result;
-            const lines = content.split('\n');
+            const stats = processCSVContent(content);
 
-            // Validate header
-            const header = lines[0].trim();
+            triggerDataRefresh();
 
-            if (!header.includes('Date') || !header.includes('Currency Code') || !header.includes('Converted GEL')) {
-                throw new Error('Invalid CSV format. Missing required columns.');
-            }
-
-            const existingTransactions = loadTransactions();
-            const existingTimestamps = new Set(existingTransactions.map(t => t.timestamp));
-            const users = loadUsers();
-            const userIds = new Set(users.map(u => u.id));
-            let imported = 0;
-            let skipped = 0;
-            let usersCreated = 0;
-
-            // Parse data rows
-            for (let i = 1; i < lines.length; i++) {
-                const line = lines[i].trim();
-                if (!line) continue;
-
-                // Parse CSV line (handle quoted values)
-                const regex = /("([^"]|"")*"|[^,]+)/g;
-                const values = [];
-                let match;
-                while ((match = regex.exec(line)) !== null) {
-                    let value = match[0];
-                    if (value.startsWith('"') && value.endsWith('"')) {
-                        value = value.slice(1, -1).replace(/""/g, '"');
-                    }
-                    values.push(value);
-                }
-
-                // Support both old format (12 cols) and new format (13 cols with YTD)
-                if (values.length < 12) continue;
-
-                const hasYTD = values.length >= 13;
-                const timestamp = hasYTD ? values[12] : values[11];
-
-                // Skip duplicates
-                if (existingTimestamps.has(timestamp)) {
-                    skipped++;
-                    continue;
-                }
-
-                // Check if user exists, create if not
-                const userId = values[1];
-                const userName = values[2];
-                const taxpayerId = values[3];
-
-                if (!userIds.has(userId)) {
-                    const newUser = { id: userId, name: userName, taxpayerId: taxpayerId };
-                    users.push(newUser);
-                    userIds.add(userId);
-                    usersCreated++;
-                }
-
-                const transaction = {
-                    id: generateTransactionId(),
-                    userId: userId,
-                    date: values[0],
-                    currencyCode: values[4],
-                    currencyName: values[5],
-                    amount: parseFloat(values[6]),
-                    rate: parseFloat(values[7]),
-                    quantity: parseFloat(values[8]),
-                    convertedGEL: parseFloat(values[9]),
-                    comment: hasYTD ? values[11] : values[10],
-                    timestamp: timestamp
-                };
-
-                existingTransactions.push(transaction);
-                imported++;
-            }
-
-            localStorage.setItem('users', JSON.stringify(users));
-            localStorage.setItem('transactions', JSON.stringify(existingTransactions));
-            renderTransactionList();
-            renderUserList();
-            populateUserSelectors();
-
-            alert(`Import completed!\nImported: ${imported}\nSkipped (duplicates): ${skipped}\nNew users created: ${usersCreated}`);
+            alert(
+                `Import completed!\n` +
+                `Imported: ${stats.imported}\n` +
+                `Skipped (duplicates): ${stats.skipped}\n` +
+                `New users created: ${stats.usersCreated}`
+            );
         } catch (error) {
             alert(`Import failed: ${error.message}`);
         }
@@ -1084,7 +1426,7 @@ function deleteAllUsers() {
 
     if (users.length === 0) {
         alert('No users to delete.');
-        return;
+        return false;
     }
 
     const totalTransactions = transactions.length;
@@ -1093,21 +1435,21 @@ function deleteAllUsers() {
         : `Are you sure you want to delete all ${users.length} user(s)? This action cannot be undone.`;
 
     if (!confirm(confirmMessage)) {
-        return;
+        return false;
     }
 
-    // Create default user
-    const defaultUser = { id: 'user', name: 'user', taxpayerId: '' };
-    localStorage.setItem('users', JSON.stringify([defaultUser]));
+    const defaultUser = createDefaultUser();
+    const usersSuccess = saveToStorage('users', [defaultUser]);
+    const transactionsSuccess = saveToStorage('transactions', []);
 
-    // Clear all transactions
-    localStorage.setItem('transactions', JSON.stringify([]));
+    if (usersSuccess && transactionsSuccess) {
+        triggerDataRefresh();
+        alert('All users and transactions have been deleted. A default user has been created.');
+        return true;
+    }
 
-    renderUserList();
-    populateUserSelectors();
-    renderTransactionList();
-
-    alert('All users and transactions have been deleted. A default user has been created.');
+    alert('Failed to delete all users. Please try again.');
+    return false;
 }
 
 // Function to add new user
@@ -1159,26 +1501,77 @@ function isValidDate(dateString) {
     return selectedDate <= today;
 }
 
-// Set default date to today and load currencies
+function handleFilterChange(filterKey, value) {
+    filterState[filterKey] = value;
+    renderTransactionList();
+    if (filterKey === 'userId') {
+        populateCurrencyFilter();
+    }
+}
+
+const debouncedFilterChange = debounce((filterKey, value) => {
+    handleFilterChange(filterKey, value);
+}, FILTER_DEBOUNCE_MS);
+
+function setupFilterEventListeners() {
+    const filterUser = document.getElementById('filterUser');
+    const filterCurrency = document.getElementById('filterCurrency');
+    const filterDateFrom = document.getElementById('filterDateFrom');
+    const filterDateTo = document.getElementById('filterDateTo');
+
+    if (filterUser) {
+        filterUser.addEventListener('change', function() {
+            handleFilterChange('userId', this.value);
+        });
+    }
+
+    if (filterCurrency) {
+        filterCurrency.addEventListener('change', function() {
+            handleFilterChange('currencyCode', this.value);
+        });
+    }
+
+    if (filterDateFrom) {
+        filterDateFrom.addEventListener('change', function() {
+            debouncedFilterChange('dateFrom', this.value);
+        });
+    }
+
+    if (filterDateTo) {
+        filterDateTo.addEventListener('change', function() {
+            debouncedFilterChange('dateTo', this.value);
+        });
+    }
+}
+
 window.onload = function () {
     loadCheckboxState();
-    restoreCollapsibleStates(); // Restore collapsible section states
+    restoreCollapsibleStates();
+
     const today = getTodayDate();
-    document.getElementById('datePicker').value = today;
+    const datePicker = document.getElementById('datePicker');
+    if (datePicker) datePicker.value = today;
+
     setMaxDates();
-    loadCurrencies(true); // Pass true for initial load to set GEL as default
+    loadCurrencies(true);
     renderTransactionList();
     renderUserList();
     populateUserSelectors();
+    setupFilterEventListeners();
 
-    // Save checkbox state when changed
-    document.getElementById('addTransactionCheckbox').addEventListener('change', saveCheckboxState);
+    const addTransactionCheckbox = document.getElementById('addTransactionCheckbox');
+    if (addTransactionCheckbox) {
+        addTransactionCheckbox.addEventListener('change', saveCheckboxState);
+    }
 
-    // Allow Enter key in amount field to trigger convert button
-    document.getElementById('amountInput').addEventListener('keypress', function (e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            document.getElementById('fetchButton').click();
-        }
-    });
+    const amountInput = document.getElementById('amountInput');
+    if (amountInput) {
+        amountInput.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const fetchButton = document.getElementById('fetchButton');
+                if (fetchButton) fetchButton.click();
+            }
+        });
+    }
 };

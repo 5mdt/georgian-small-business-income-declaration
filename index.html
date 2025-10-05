@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Currency to GEL Converter</title>
+    <link rel="icon" type="image/png" href="favicon.png">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -166,26 +167,26 @@
                             <div class="filter-grid">
                                 <div class="form-group mb-0">
                                     <label for="filterUser">User</label>
-                                    <select id="filterUser" onchange="filterState.userId = this.value; renderTransactionList(); populateCurrencyFilter();">
+                                    <select id="filterUser">
                                         <option value="all">All Users</option>
                                     </select>
                                 </div>
 
                                 <div class="form-group mb-0">
                                     <label for="filterCurrency">Currency</label>
-                                    <select id="filterCurrency" onchange="filterState.currencyCode = this.value; renderTransactionList();">
+                                    <select id="filterCurrency">
                                         <option value="all">All Currencies</option>
                                     </select>
                                 </div>
 
                                 <div class="form-group mb-0">
                                     <label for="filterDateFrom">From</label>
-                                    <input type="date" id="filterDateFrom" onchange="filterState.dateFrom = this.value; renderTransactionList();">
+                                    <input type="date" id="filterDateFrom">
                                 </div>
 
                                 <div class="form-group mb-0">
                                     <label for="filterDateTo">To</label>
-                                    <input type="date" id="filterDateTo" onchange="filterState.dateTo = this.value; renderTransactionList();">
+                                    <input type="date" id="filterDateTo">
                                 </div>
                             </div>
                             <button class="btn btn-secondary btn-sm" onclick="clearFilters()">Clear Filters</button>
