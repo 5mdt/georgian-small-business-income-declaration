@@ -796,6 +796,7 @@ function importFromCSV(file) {
             const existingTransactions = loadTransactions();
             const existingTimestamps = new Set(existingTransactions.map(t => t.timestamp));
             const users = loadUsers();
+            const userIds = new Set(users.map(u => u.id));
             let imported = 0;
             let skipped = 0;
             let usersCreated = 0;
@@ -834,9 +835,10 @@ function importFromCSV(file) {
                 const userName = values[2];
                 const taxpayerId = values[3];
 
-                if (!getUserById(userId)) {
+                if (!userIds.has(userId)) {
                     const newUser = { id: userId, name: userName, taxpayerId: taxpayerId };
                     users.push(newUser);
+                    userIds.add(userId);
                     usersCreated++;
                 }
 
