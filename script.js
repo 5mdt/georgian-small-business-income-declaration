@@ -7,7 +7,7 @@ function loadUsers() {
     const stored = localStorage.getItem('users');
     if (!stored) {
         // Create default user
-        const defaultUser = {id: 'user', name: 'user', taxpayerId: ''};
+        const defaultUser = { id: 'user', name: 'user', taxpayerId: '' };
         localStorage.setItem('users', JSON.stringify([defaultUser]));
         return [defaultUser];
     }
@@ -74,6 +74,37 @@ function generateUserId() {
 // Function to generate unique transaction ID
 function generateTransactionId() {
     return Date.now().toString(36) + Math.random().toString(36).substr(2);
+}
+
+// Function to format currency with thousand separators
+function formatCurrency(value) {
+    return value.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+}
+
+// Function to calculate Year-to-Date income for a specific transaction
+function calculateYTDForTransaction(transaction, allTransactions) {
+    const year = new Date(transaction.date).getFullYear();
+
+    // Filter transactions for same user and year, up to and including current date
+    const ytdTransactions = allTransactions.filter(t => {
+        const tYear = new Date(t.date).getFullYear();
+        return t.userId === transaction.userId &&
+            tYear === year &&
+            t.date <= transaction.date;
+    });
+
+    // Sort by date and calculate running total
+    ytdTransactions.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    let runningTotal = 0;
+    for (const t of ytdTransactions) {
+        runningTotal += t.convertedGEL;
+        if (t.id === transaction.id || (t.date === transaction.date && t.timestamp === transaction.timestamp)) {
+            return runningTotal;
+        }
+    }
+
+    return runningTotal;
 }
 
 // Function to save a transaction to localStorage
@@ -224,20 +255,36 @@ document.getElementById('fetchButton').addEventListener('click', function () {
 function handleCurrencyData(data, amount, currencyCode, resultDiv, loadingMessage, errorMessage, addAsTransaction) {
     loadingMessage.classList.add('hidden');
 
-    if (!Array.isArray(data) || data.length === 0 || !data[0].currencies) {
-        throw new Error('No valid currency data available.');
+    let selectedCurrency;
+    let convertedAmount;
+
+    // Handle GEL (no conversion needed)
+    if (currencyCode === 'GEL') {
+        selectedCurrency = {
+            code: 'GEL',
+            name: 'Georgian Lari',
+            rate: 1,
+            quantity: 1,
+            rateFormated: '1.0000'
+        };
+        convertedAmount = amount.toFixed(2);
+    } else {
+        if (!Array.isArray(data) || data.length === 0 || !data[0].currencies) {
+            throw new Error('No valid currency data available.');
+        }
+
+        // Extract currency data
+        const currencies = data[0].currencies;
+        selectedCurrency = currencies.find(c => c.code === currencyCode);
+
+        if (!selectedCurrency) {
+            throw new Error('Selected currency not found.');
+        }
+
+        // Perform conversion to GEL using the correct formula: rate / quantity
+        convertedAmount = (amount * selectedCurrency.rate / selectedCurrency.quantity).toFixed(2);
     }
 
-    // Extract currency data
-    const currencies = data[0].currencies;
-    const selectedCurrency = currencies.find(c => c.code === currencyCode);
-
-    if (!selectedCurrency) {
-        throw new Error('Selected currency not found.');
-    }
-
-    // Perform conversion to GEL using the correct formula: rate / quantity
-    const convertedAmount = (amount * selectedCurrency.rate / selectedCurrency.quantity).toFixed(2);
     const transactionDate = document.getElementById('datePicker').value;
 
     // Display result
@@ -265,88 +312,119 @@ function handleCurrencyData(data, amount, currencyCode, resultDiv, loadingMessag
         saveTransaction(transaction);
 
         resultDiv.innerHTML = `
-            <p><strong>Transaction Added:</strong> ${amount} ${currencyCode} = ${convertedAmount} GEL</p>
+            <p><strong>Transaction Added:</strong> ${formatCurrency(amount)} ${currencyCode} = ${formatCurrency(parseFloat(convertedAmount))} GEL</p>
         `;
     } else {
-        resultDiv.innerHTML = `
-            <p><strong>${amount} ${currencyCode}</strong> = <strong>${convertedAmount} GEL</strong></p>
-            <p>Exchange Rate: <strong>${selectedCurrency.rateFormated}</strong></p>
-            <p>Quantity Factor: <strong>${selectedCurrency.quantity}</strong></p>
-        `;
+        if (currencyCode === 'GEL') {
+            resultDiv.innerHTML = `
+                <p><strong>${formatCurrency(amount)} GEL</strong></p>
+            `;
+        } else {
+            resultDiv.innerHTML = `
+                <p><strong>${formatCurrency(amount)} ${currencyCode}</strong> = <strong>${formatCurrency(parseFloat(convertedAmount))} GEL</strong></p>
+                <p>Exchange Rate: <strong>${selectedCurrency.rateFormated}</strong></p>
+                <p>Quantity Factor: <strong>${selectedCurrency.quantity}</strong></p>
+            `;
+        }
     }
     resultDiv.classList.remove('hidden');
 }
 // Load currencies when date is selected
 document.getElementById('datePicker').addEventListener('change', function () {
-  loadCurrencies();
+    loadCurrencies();
 });
 
-function loadCurrencies() {
-  const date = document.getElementById('datePicker').value;
-  const currencySelect = document.getElementById('currencySelect');
-  const errorMessage = document.getElementById('errorMessage');
-  const loadingMessage = document.getElementById('loadingMessage');
+function loadCurrencies(isInitialLoad = false) {
+    const date = document.getElementById('datePicker').value;
+    const currencySelect = document.getElementById('currencySelect');
+    const errorMessage = document.getElementById('errorMessage');
+    const loadingMessage = document.getElementById('loadingMessage');
 
-  // Clear previous errors and loading message
-  errorMessage.textContent = '';
-  errorMessage.classList.add('hidden');
-  loadingMessage.classList.add('hidden');
+    // Clear previous errors and loading message
+    errorMessage.textContent = '';
+    errorMessage.classList.add('hidden');
+    loadingMessage.classList.add('hidden');
 
-  if (!date) return;
+    if (!date) return;
 
-  // Validate date is not in future
-  if (!isValidDate(date)) {
-      errorMessage.textContent = 'Cannot select a future date. Please select today or an earlier date.';
-      errorMessage.classList.remove('hidden');
-      currencySelect.innerHTML = '<option value="">Select a currency</option>';
-      return;
-  }
+    // Validate date is not in future
+    if (!isValidDate(date)) {
+        errorMessage.textContent = 'Cannot select a future date. Please select today or an earlier date.';
+        errorMessage.classList.remove('hidden');
+        currencySelect.innerHTML = '<option value="">Select a currency</option>';
+        return;
+    }
 
-  // Show loading
-  currencySelect.innerHTML = '<option value="">Loading...</option>';
+    // Save the currently selected currency BEFORE showing loading
+    const savedCurrency = currencySelect.value;
 
-  // Check if data is cached in localStorage
-  const cachedData = localStorage.getItem(`currencyRates_${date}`);
-  if (cachedData) {
-      // Use cached data
-      populateCurrencySelect(JSON.parse(cachedData), currencySelect);
-  } else {
-      // Fetch data
-      const apiUrl = `https://nbg.gov.ge/gw/api/ct/monetarypolicy/currencies/en/json/?date=${date}`;
-      fetch(apiUrl)
-          .then(response => {
-              if (!response.ok) {
-                  throw new Error(`API error: ${response.statusText}`);
-              }
-              return response.json();
-          })
-          .then(data => {
-              // Cache data in localStorage
-              localStorage.setItem(`currencyRates_${date}`, JSON.stringify(data));
+    // Show loading
+    currencySelect.innerHTML = '<option value="">Loading...</option>';
 
-              populateCurrencySelect(data, currencySelect);
-          })
-          .catch(error => {
-              errorMessage.textContent = `Error: ${error.message}`;
-              errorMessage.classList.remove('hidden');
-          });
-  }
+    // Check if data is cached in localStorage
+    const cachedData = localStorage.getItem(`currencyRates_${date}`);
+    if (cachedData) {
+        // Use cached data
+        populateCurrencySelect(JSON.parse(cachedData), currencySelect, isInitialLoad, savedCurrency);
+    } else {
+        // Fetch data
+        const apiUrl = `https://nbg.gov.ge/gw/api/ct/monetarypolicy/currencies/en/json/?date=${date}`;
+        fetch(apiUrl)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`API error: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Cache data in localStorage
+                localStorage.setItem(`currencyRates_${date}`, JSON.stringify(data));
+
+                populateCurrencySelect(data, currencySelect, isInitialLoad, savedCurrency);
+            })
+            .catch(error => {
+                errorMessage.textContent = `Error: ${error.message}`;
+                errorMessage.classList.remove('hidden');
+            });
+    }
 }
 
 // Function to populate currency select
-function populateCurrencySelect(data, currencySelect) {
-  if (!Array.isArray(data) || data.length === 0 || !data[0].currencies) {
-      throw new Error('No valid currency data available.');
-  }
+function populateCurrencySelect(data, currencySelect, isInitialLoad = false, savedCurrency = null) {
+    if (!Array.isArray(data) || data.length === 0 || !data[0].currencies) {
+        throw new Error('No valid currency data available.');
+    }
 
-  // Populate dropdown
-  currencySelect.innerHTML = '<option value="">Select a currency</option>';
-  data[0].currencies.forEach(currency => {
-      const option = document.createElement('option');
-      option.value = currency.code;
-      option.textContent = `${currency.code} - ${currency.name}`;
-      currencySelect.appendChild(option);
-  });
+    // Use the saved currency value passed from loadCurrencies
+    const currentValue = savedCurrency && savedCurrency !== '' ? savedCurrency : null;
+
+    // Populate dropdown
+    currencySelect.innerHTML = '<option value="">Select a currency</option>';
+
+    // Add GEL as first option
+    const gelOption = document.createElement('option');
+    gelOption.value = 'GEL';
+    gelOption.textContent = 'GEL - Georgian Lari';
+    currencySelect.appendChild(gelOption);
+
+    // Add all other currencies
+    data[0].currencies.forEach(currency => {
+        const option = document.createElement('option');
+        option.value = currency.code;
+        option.textContent = `${currency.code} - ${currency.name}`;
+        currencySelect.appendChild(option);
+    });
+
+    // Restore previous selection if it exists in the new list
+    if (currentValue) {
+        const currencyExists = currentValue === 'GEL' || data[0].currencies.some(c => c.code === currentValue);
+        if (currencyExists) {
+            currencySelect.value = currentValue;
+        }
+    } else if (isInitialLoad) {
+        // Only set GEL as default on initial page load
+        currencySelect.value = 'GEL';
+    }
 }
 
 // ===========================
@@ -417,6 +495,10 @@ function sortTransactions(transactions) {
             case 'gel':
                 aVal = a.convertedGEL;
                 bVal = b.convertedGEL;
+                break;
+            case 'ytd':
+                aVal = calculateYTDForTransaction(a, transactions);
+                bVal = calculateYTDForTransaction(b, transactions);
                 break;
             default:
                 return 0;
@@ -509,6 +591,7 @@ function renderTransactionList() {
                     <th onclick="toggleSort('amount')" class="sortable">Amount${getSortIndicator('amount')}</th>
                     <th>Rate</th>
                     <th onclick="toggleSort('gel')" class="sortable">GEL Amount${getSortIndicator('gel')}</th>
+                    <th onclick="toggleSort('ytd')" class="sortable">YTD Income${getSortIndicator('ytd')}</th>
                     <th>Comment</th>
                     <th>Actions</th>
                 </tr>
@@ -520,22 +603,24 @@ function renderTransactionList() {
         const commentId = `comment-${t.id}`;
         const user = getUserById(t.userId);
         const userName = user ? user.name : 'Unknown';
+        const ytdIncome = calculateYTDForTransaction(t, allTransactions);
 
         tableHTML += `
             <tr>
                 <td>${t.date}</td>
                 <td>${userName}</td>
                 <td>${t.currencyCode} - ${t.currencyName}</td>
-                <td>${t.amount.toFixed(2)}</td>
+                <td>${formatCurrency(t.amount)}</td>
                 <td>${(t.rate / t.quantity).toFixed(4)}</td>
-                <td>${t.convertedGEL.toFixed(2)}</td>
+                <td>${formatCurrency(t.convertedGEL)}</td>
+                <td><strong>${formatCurrency(ytdIncome)}</strong></td>
                 <td>
                     <input type="text"
-                           id="${commentId}"
-                           value="${t.comment || ''}"
-                           placeholder="Add comment..."
-                           class="input-inline"
-                           onblur="updateTransactionComment('${t.id}', this.value)">
+                            id="${commentId}"
+                            value="${t.comment || ''}"
+                            placeholder="Add comment..."
+                            class="input-inline"
+                            onblur="updateTransactionComment('${t.id}', this.value)">
                 </td>
                 <td>
                     <button class="btn btn-danger btn-sm" onclick="deleteTransaction('${t.id}')">Delete</button>
@@ -549,7 +634,7 @@ function renderTransactionList() {
             <tfoot>
                 <tr>
                     <td colspan="5"><strong>Total GEL:</strong></td>
-                    <td colspan="3"><strong>${totalGEL}</strong></td>
+                    <td colspan="4"><strong>${formatCurrency(parseFloat(totalGEL))}</strong></td>
                 </tr>
             </tfoot>
         </table>
@@ -581,7 +666,7 @@ function exportToCSV() {
     }
 
     // CSV header
-    let csvContent = 'Date,User ID,User Name,Taxpayer ID,Currency Code,Currency Name,Amount,Exchange Rate,Quantity,Converted GEL,Comment,Timestamp\n';
+    let csvContent = 'Date,User ID,User Name,Taxpayer ID,Currency Code,Currency Name,Amount,Exchange Rate,Quantity,Converted GEL,YTD Income,Comment,Timestamp\n';
 
     // Add rows
     transactions.forEach(t => {
@@ -591,8 +676,9 @@ function exportToCSV() {
         const escapedUserName = `"${userName.replace(/"/g, '""')}"`;
         const escapedCurrencyName = `"${t.currencyName.replace(/"/g, '""')}"`;
         const escapedComment = `"${(t.comment || '').replace(/"/g, '""')}"`;
+        const ytdIncome = calculateYTDForTransaction(t, allTransactions);
 
-        csvContent += `${t.date},${t.userId},${escapedUserName},${taxpayerId},${t.currencyCode},${escapedCurrencyName},${t.amount},${t.rate},${t.quantity},${t.convertedGEL},${escapedComment},${t.timestamp}\n`;
+        csvContent += `${t.date},${t.userId},${escapedUserName},${taxpayerId},${t.currencyCode},${escapedCurrencyName},${t.amount},${t.rate},${t.quantity},${t.convertedGEL},${ytdIncome},${escapedComment},${t.timestamp}\n`;
     });
 
     // Create blob and download
@@ -622,7 +708,7 @@ function exportToCSV() {
 function importFromCSV(file) {
     const reader = new FileReader();
 
-    reader.onload = function(e) {
+    reader.onload = function (e) {
         try {
             const content = e.target.result;
             const lines = content.split('\n');
@@ -658,9 +744,11 @@ function importFromCSV(file) {
                     values.push(value);
                 }
 
+                // Support both old format (12 cols) and new format (13 cols with YTD)
                 if (values.length < 12) continue;
 
-                const timestamp = values[11];
+                const hasYTD = values.length >= 13;
+                const timestamp = hasYTD ? values[12] : values[11];
 
                 // Skip duplicates
                 if (existingTimestamps.has(timestamp)) {
@@ -674,7 +762,7 @@ function importFromCSV(file) {
                 const taxpayerId = values[3];
 
                 if (!getUserById(userId)) {
-                    const newUser = {id: userId, name: userName, taxpayerId: taxpayerId};
+                    const newUser = { id: userId, name: userName, taxpayerId: taxpayerId };
                     users.push(newUser);
                     usersCreated++;
                 }
@@ -689,7 +777,7 @@ function importFromCSV(file) {
                     rate: parseFloat(values[7]),
                     quantity: parseFloat(values[8]),
                     convertedGEL: parseFloat(values[9]),
-                    comment: values[10],
+                    comment: hasYTD ? values[11] : values[10],
                     timestamp: timestamp
                 };
 
@@ -709,7 +797,7 @@ function importFromCSV(file) {
         }
     };
 
-    reader.onerror = function() {
+    reader.onerror = function () {
         alert('Failed to read file.');
     };
 
@@ -900,15 +988,15 @@ function isValidDate(dateString) {
 
 // Set default date to today and load currencies
 window.onload = function () {
-  loadCheckboxState();
-  const today = getTodayDate();
-  document.getElementById('datePicker').value = today;
-  setMaxDates();
-  loadCurrencies();
-  renderTransactionList();
-  renderUserList();
-  populateUserSelectors();
+    loadCheckboxState();
+    const today = getTodayDate();
+    document.getElementById('datePicker').value = today;
+    setMaxDates();
+    loadCurrencies(true); // Pass true for initial load to set GEL as default
+    renderTransactionList();
+    renderUserList();
+    populateUserSelectors();
 
-  // Save checkbox state when changed
-  document.getElementById('addTransactionCheckbox').addEventListener('change', saveCheckboxState);
+    // Save checkbox state when changed
+    document.getElementById('addTransactionCheckbox').addEventListener('change', saveCheckboxState);
 };
