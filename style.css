@@ -1,325 +1,699 @@
-/* style.css */
+/* style.css - Georgian Small Business Income Declaration Helper */
 
-/* Define Nord Aurora Light Color Palette Variables */
+/* ===========================
+   CSS Custom Properties (Theme System)
+   =========================== */
+
 :root {
-  --nord-0: #d8dee9;  /* Snow Storm */
-  --nord-1: #e5e9f0;  /* Ice Cold */
-  --nord-2: #eceff4;  /* Frost */
-  --nord-3: #3b4252;  /* Darker Gray */
-  --nord-4: #434c5e;  /* Medium Gray */
-  --nord-5: #4c566a;  /* Soft Dark Gray */
-  --nord-6: #81a1c1;  /* Light Blue */
-  --nord-7: #88c0d0;  /* Ice Blue */
-  --nord-8: #8fbcbb;  /* Pale Sky */
-  --nord-9: #bf616a;  /* Red Accent */
-  --nord-10: #d08770; /* Orange Accent */
-  --nord-11: #ebcb8b; /* Yellow Accent */
-  --nord-12: #a3be8c; /* Green Accent */
-  --nord-13: #b48ead; /* Purple Accent */
+  /* Nord Color Palette - Base */
+  --nord-polar-night-1: #2e3440;
+  --nord-polar-night-2: #3b4252;
+  --nord-polar-night-3: #434c5e;
+  --nord-polar-night-4: #4c566a;
+
+  --nord-snow-storm-1: #d8dee9;
+  --nord-snow-storm-2: #e5e9f0;
+  --nord-snow-storm-3: #eceff4;
+
+  --nord-frost-1: #8fbcbb;
+  --nord-frost-2: #88c0d0;
+  --nord-frost-3: #81a1c1;
+  --nord-frost-4: #5e81ac;
+
+  --nord-aurora-red: #bf616a;
+  --nord-aurora-orange: #d08770;
+  --nord-aurora-yellow: #ebcb8b;
+  --nord-aurora-green: #a3be8c;
+  --nord-aurora-purple: #b48ead;
+
+  /* Light Mode Theme Variables */
+  --bg-primary: var(--nord-snow-storm-3);
+  --bg-secondary: var(--nord-snow-storm-2);
+  --bg-tertiary: var(--nord-snow-storm-1);
+  --bg-card: #ffffff;
+
+  --text-primary: var(--nord-polar-night-2);
+  --text-secondary: var(--nord-polar-night-3);
+  --text-muted: var(--nord-polar-night-4);
+  --text-inverse: var(--nord-snow-storm-3);
+
+  --border-color: var(--nord-polar-night-4);
+  --border-light: var(--nord-snow-storm-1);
+
+  --accent-primary: var(--nord-frost-3);
+  --accent-primary-hover: var(--nord-frost-2);
+  --accent-secondary: var(--nord-aurora-orange);
+
+  --success: var(--nord-aurora-green);
+  --warning: var(--nord-aurora-yellow);
+  --error: var(--nord-aurora-red);
+  --info: var(--nord-frost-2);
+
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+
+  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+  --font-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
 }
 
-/* Global Styles */
-body {
-  font-family: Arial, sans-serif;
+/* Dark Mode Theme Variables */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-primary: var(--nord-polar-night-1);
+    --bg-secondary: var(--nord-polar-night-2);
+    --bg-tertiary: var(--nord-polar-night-3);
+    --bg-card: var(--nord-polar-night-2);
+
+    --text-primary: var(--nord-snow-storm-3);
+    --text-secondary: var(--nord-snow-storm-2);
+    --text-muted: var(--nord-snow-storm-1);
+    --text-inverse: var(--nord-polar-night-1);
+
+    --border-color: var(--nord-polar-night-4);
+    --border-light: var(--nord-polar-night-3);
+
+    --accent-primary: var(--nord-frost-3);
+    --accent-primary-hover: var(--nord-frost-2);
+    --accent-secondary: var(--nord-aurora-orange);
+
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+  }
+}
+
+/* ===========================
+   Global Styles
+   =========================== */
+
+* {
+  box-sizing: border-box;
   margin: 0;
-  padding: 1.25em;
-  background-color: var(--nord-1);
-  color: var(--nord-3);
-  max-width: 75em;
-  width: 100%;
-  margin-left: auto;
-  margin-right: auto;
-  box-sizing: border-box;
-  display: block;
-  transition: background-color 0.3s ease;
+  padding: 0;
 }
 
-/* Containers */
-.container {
-  max-width: 100%;
-  margin: 0 auto;
-  background-color: var(--nord-1);
-  padding: 2em;
-  border-radius: 8px;
-  box-shadow: 0 0.5em 1em rgba(0, 0, 0, 0.1);
-  box-sizing: border-box;
-  text-align: center;
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Typography */
-h1 {
-  font-size: 2em;
+body {
+  font-family: var(--font-family);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.6;
+  min-height: 100vh;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* ===========================
+   Layout
+   =========================== */
+
+.app-header {
+  background-color: var(--bg-card);
+  padding: var(--spacing-lg) var(--spacing-md);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: var(--spacing-lg);
+}
+
+.app-header h1 {
+  font-size: 1.75rem;
   font-weight: 700;
-  color: var(--nord-10);
-  margin-bottom: 1.25em;
+  color: var(--accent-secondary);
+  text-align: center;
+  margin: 0;
 }
 
-/* Input Styles */
-input,
-select {
-  padding: 1em;
-  font-size: 1em;
-  border: 0.2em solid var(--nord-4);
+.app-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 var(--spacing-md) var(--spacing-xl);
+}
+
+.main-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--spacing-lg);
+}
+
+@media (min-width: 1024px) {
+  .main-grid {
+    grid-template-columns: 380px 1fr;
+  }
+}
+
+/* ===========================
+   Card Component
+   =========================== */
+
+.card {
+  background-color: var(--bg-card);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  padding: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+}
+
+.card-header {
+  margin-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.card-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--accent-secondary);
+  margin: 0;
+}
+
+.card-body {
+  padding: var(--spacing-sm) 0;
+}
+
+/* ===========================
+   Form Elements
+   =========================== */
+
+.form-group {
+  margin-bottom: var(--spacing-md);
+}
+
+label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-xs);
+}
+
+input[type="text"],
+input[type="number"],
+input[type="date"],
+input[type="file"],
+select,
+textarea {
   width: 100%;
-  background-color: var(--nord-2);
-  margin-bottom: 1.5em;
-  box-sizing: border-box;
-  border-radius: 8px;
-  transition: border-color 0.3s ease;
+  padding: 10px 12px;
+  font-size: 0.9375rem;
+  font-family: var(--font-family);
+  color: var(--text-primary);
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 input:focus,
-select:focus {
-  border-color: var(--nord-6);
+select:focus,
+textarea:focus {
   outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(129, 161, 193, 0.1);
 }
 
-/* Button Styles */
-button {
-  padding: 1em 2em;
-  font-size: 1.1em;
-  background-color: var(--nord-6);
-  color: var(--nord-2);
+input:disabled,
+select:disabled,
+textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.input-inline {
+  padding: 6px 10px;
+  font-size: 0.875rem;
+}
+
+/* ===========================
+   Buttons
+   =========================== */
+
+.btn {
+  display: inline-block;
+  padding: 10px 20px;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  font-family: var(--font-family);
+  text-align: center;
+  text-decoration: none;
   border: none;
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  border-radius: 8px;
-  transition: background-color 0.3s ease;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-primary {
+  background-color: var(--accent-primary);
+  color: var(--text-inverse);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--accent-primary-hover);
+}
+
+.btn-secondary {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: var(--bg-secondary);
+}
+
+.btn-danger {
+  background-color: var(--error);
+  color: var(--text-inverse);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background-color: #a54e56;
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 0.8125rem;
+}
+
+.btn-block {
   width: 100%;
-  max-width: 15em;
-  box-sizing: border-box;
-  margin-bottom: 1.5em;
 }
 
-button:hover {
-  background-color: var(--nord-7);
+.btn-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
 }
 
-button:active {
-  background-color: var(--nord-13);
+/* ===========================
+   Converter Section
+   =========================== */
+
+.converter-panel {
+  position: sticky;
+  top: var(--spacing-md);
+  align-self: start;
+  max-height: calc(100vh - var(--spacing-xl));
+  overflow-y: auto;
 }
 
-/* Error & Loading Message */
-#errorMessage {
-  color: var(--nord-9);
-  font-weight: bold;
-  margin-top: 1em;
+.result-display {
+  background-color: var(--bg-secondary);
+  border-left: 4px solid var(--accent-primary);
+  padding: var(--spacing-md);
+  border-radius: var(--radius-sm);
+  margin-top: var(--spacing-md);
 }
 
-#loadingMessage {
-  font-weight: bold;
-  color: var(--nord-6);
-  font-size: 1.1em;
-  margin-top: 1em;
+.result-display strong {
+  color: var(--accent-secondary);
 }
 
-/* Results Styling */
-.result {
-  margin-top: 2em;
-  font-size: 1.1em;
+.checkbox-group {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin: var(--spacing-md) 0;
 }
+
+.checkbox-group input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+}
+
+.checkbox-group label {
+  margin: 0;
+  font-weight: normal;
+}
+
+/* ===========================
+   Status Messages
+   =========================== */
+
+.status-message {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-sm);
+  margin: var(--spacing-sm) 0;
+  font-size: 0.875rem;
+}
+
+.status-error {
+  background-color: rgba(191, 97, 106, 0.1);
+  border-left: 4px solid var(--error);
+  color: var(--error);
+  font-weight: 500;
+}
+
+.status-loading {
+  background-color: rgba(129, 161, 193, 0.1);
+  border-left: 4px solid var(--info);
+  color: var(--accent-primary);
+}
+
+.status-success {
+  background-color: rgba(163, 190, 140, 0.1);
+  border-left: 4px solid var(--success);
+  color: var(--success);
+}
+
+/* ===========================
+   User Management
+   =========================== */
+
+.user-management-section {
+  margin-bottom: var(--spacing-md);
+}
+
+.collapsible-section {
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.user-table-wrapper {
+  overflow-x: auto;
+  margin-top: var(--spacing-md);
+}
+
+/* ===========================
+   Tables
+   =========================== */
 
 table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 1.5em;
+  font-size: 0.875rem;
 }
 
-table th,
-table td {
-  padding: 1em;
+thead {
+  position: sticky;
+  top: 0;
+  background-color: var(--bg-secondary);
+  z-index: 10;
+}
+
+th {
+  padding: 12px;
   text-align: left;
-  border-bottom: 1px solid var(--nord-4);
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-bottom: 2px solid var(--border-color);
+  background-color: var(--bg-tertiary);
 }
 
-table th {
-  background-color: var(--nord-5);
-  color: var(--nord-2);
+td {
+  padding: 12px;
+  border-bottom: 1px solid var(--border-light);
 }
 
-table td {
-  background-color: var(--nord-1);
-  color: var(--nord-3);
+tbody tr {
+  transition: background-color 0.15s ease;
 }
 
-table tr:hover {
-  background-color: var(--nord-3);
-  color: var(--nord-2);
+tbody tr:nth-child(even) {
+  background-color: var(--bg-secondary);
 }
 
-/* Transaction Section */
-.transaction-section {
-  margin-top: 3em;
+tbody tr:hover {
+  background-color: var(--bg-tertiary);
 }
 
-.transaction-section h2 {
-  font-size: 1.5em;
-  color: var(--nord-10);
-  margin-bottom: 1em;
+tfoot td {
+  padding: 12px;
+  font-weight: 600;
+  background-color: var(--accent-primary);
+  color: var(--text-inverse);
+  border-top: 2px solid var(--border-color);
 }
 
-.transaction-controls {
+.sortable {
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  padding-right: 20px;
+}
+
+.sortable:hover {
+  color: var(--accent-primary);
+}
+
+.no-data {
+  text-align: center;
+  padding: var(--spacing-xl);
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* ===========================
+   Filter Controls
+   =========================== */
+
+.filter-panel {
+  background-color: var(--bg-secondary);
+  padding: var(--spacing-md);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--spacing-md);
+}
+
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.filter-status {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  font-style: italic;
+  margin-bottom: var(--spacing-sm);
+}
+
+/* ===========================
+   Action Toolbar
+   =========================== */
+
+.action-toolbar {
   display: flex;
   flex-wrap: wrap;
-  gap: 1em;
-  margin-bottom: 2em;
-  justify-content: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+  padding: var(--spacing-md);
+  background-color: var(--bg-secondary);
+  border-radius: var(--radius-sm);
 }
 
-.transaction-controls button {
-  max-width: 12em;
-  font-size: 0.9em;
-  padding: 0.8em 1.5em;
-}
+/* ===========================
+   Responsive Design
+   =========================== */
 
-/* Transaction Table */
-.transaction-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 1.5em;
-  background-color: var(--nord-2);
-}
-
-.transaction-table th,
-.transaction-table td {
-  padding: 0.8em;
-  text-align: left;
-  border-bottom: 1px solid var(--nord-4);
-}
-
-.transaction-table th {
-  background-color: var(--nord-5);
-  color: var(--nord-2);
-  font-weight: bold;
-}
-
-.transaction-table td {
-  background-color: var(--nord-1);
-  color: var(--nord-3);
-}
-
-.transaction-table tbody tr:hover {
-  background-color: var(--nord-0);
-}
-
-.transaction-table tfoot td {
-  background-color: var(--nord-6);
-  color: var(--nord-2);
-  font-weight: bold;
-  font-size: 1.1em;
-}
-
-/* Comment Input */
-.comment-cell {
-  min-width: 12em;
-}
-
-.comment-input {
-  width: 100%;
-  padding: 0.5em;
-  font-size: 0.9em;
-  border: 1px solid var(--nord-4);
-  background-color: var(--nord-2);
-  color: var(--nord-3);
-  border-radius: 4px;
-  box-sizing: border-box;
-}
-
-.comment-input:focus {
-  border-color: var(--nord-6);
-  outline: none;
-}
-
-/* Action Buttons */
-.actions-cell {
-  text-align: center;
-}
-
-.delete-btn {
-  padding: 0.5em 1em;
-  font-size: 0.85em;
-  background-color: var(--nord-9);
-  color: var(--nord-2);
-  border: none;
-  cursor: pointer;
-  border-radius: 4px;
-  transition: background-color 0.3s ease;
-  max-width: 8em;
-}
-
-.delete-btn:hover {
-  background-color: #a54e56;
-}
-
-/* No Transactions Message */
-.no-transactions {
-  text-align: center;
-  color: var(--nord-5);
-  font-style: italic;
-  margin-top: 2em;
-}
-
-/* Media Queries */
-@media (max-width: 38em) {
-  h1 {
-    font-size: 1.5em;
+@media (max-width: 640px) {
+  .app-header {
+    padding: var(--spacing-md) var(--spacing-sm);
   }
 
-  .container {
-    padding: 1.5em;
+  .app-header h1 {
+    font-size: 1.25rem;
   }
 
-  input,
+  .app-container {
+    padding: 0 var(--spacing-sm) var(--spacing-lg);
+  }
+
+  .card {
+    padding: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+    border-radius: var(--radius-sm);
+  }
+
+  .card-title {
+    font-size: 1.125rem;
+  }
+
+  .form-group {
+    margin-bottom: var(--spacing-sm);
+  }
+
+  label {
+    font-size: 0.8125rem;
+    margin-bottom: 2px;
+  }
+
+  input[type="text"],
+  input[type="number"],
+  input[type="date"],
   select {
-    font-size: 1em;
+    padding: 8px 10px;
+    font-size: 0.875rem;
   }
 
-  button {
-    font-size: 1em;
-    padding: 0.8em 1.5em;
+  .input-inline {
+    padding: 4px 4px;
+    font-size: 0.7rem;
+    min-width: 60px;
   }
 
-  .transaction-controls {
+  .btn-group {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    font-size: 0.875rem;
+    padding: 8px 16px;
+  }
+
+  .btn-sm {
+    padding: 6px 8px;
+    font-size: 0.7rem;
+    white-space: nowrap;
+  }
+
+  .btn-block {
+    width: 100%;
+  }
+
+  table {
+    font-size: 0.7rem;
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+  }
+
+  thead,
+  tbody,
+  tfoot {
+    display: block;
+    width: 100%;
+  }
+
+  tr {
+    display: table;
+    width: 100%;
+    table-layout: fixed;
+  }
+
+  th,
+  td {
+    padding: 4px 2px;
+    font-size: 0.7rem;
+    word-wrap: break-word;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Hide less important columns on mobile */
+  th:nth-child(4),
+  td:nth-child(4) {
+    display: none;
+    /* Hide Rate column */
+  }
+
+  th:nth-child(5),
+  td:nth-child(5) {
+    display: none;
+    /* Hide Quantity on user table or adjust as needed */
+  }
+
+  .filter-grid {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-sm);
+  }
+
+  .filter-panel {
+    padding: var(--spacing-xs);
+  }
+
+  .action-toolbar {
     flex-direction: column;
+    padding: var(--spacing-xs);
+    gap: var(--spacing-xs);
   }
 
-  .transaction-controls button {
-    max-width: 100%;
+  .action-toolbar .btn {
+    width: 100%;
+    font-size: 0.75rem;
   }
 
-  .transaction-table {
-    font-size: 0.85em;
+  .result-display {
+    padding: var(--spacing-sm);
+    font-size: 0.875rem;
   }
 
-  .transaction-table th,
-  .transaction-table td {
-    padding: 0.5em;
+  .status-message {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: 0.8125rem;
   }
 
-  .comment-cell {
-    min-width: 8em;
+  .filter-status {
+    font-size: 0.75rem;
+  }
+
+  .checkbox-group {
+    margin: var(--spacing-sm) 0;
+  }
+
+  .checkbox-group label {
+    font-size: 0.875rem;
   }
 }
 
-/* Color Scheme: Light Mode */
-@media (prefers-color-scheme: light) {
-  body {
-    background-color: var(--nord-1);
-    color: var(--nord-3);
-  }
-
-  .container {
-    background-color: var(--nord-1);
+@media (max-width: 1023px) {
+  .converter-panel {
+    position: static;
+    max-height: none;
+    overflow-y: visible;
   }
 }
 
-/* Color Scheme: Dark Mode */
-@media (prefers-color-scheme: dark) {
-  body {
-    background-color: var(--nord-3);
-    color: var(--nord-0);
-  }
+/* ===========================
+   Utility Classes
+   =========================== */
 
-  .container {
-    background-color: var(--nord-5);
-  }
+.text-center {
+  text-align: center;
+}
+
+.text-muted {
+  color: var(--text-muted);
+}
+
+.mb-0 {
+  margin-bottom: 0;
+}
+
+.mt-md {
+  margin-top: var(--spacing-md);
+}
+
+.hidden {
+  display: none;
 }

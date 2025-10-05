@@ -3,68 +3,147 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Currency Converter (GEL)</title>
+    <title>Currency to GEL Converter</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
-    <div class="container">
+    <!-- App Header -->
+    <header class="app-header">
         <h1>Currency to GEL Converter</h1>
+    </header>
 
-        <!-- Input Section -->
-        <div class="input-section">
-            <div class="input-group">
-                <label for="datePicker">Select a Date:</label>
-                <input type="date" id="datePicker">
+    <!-- Main App Container -->
+    <div class="app-container">
+        <div class="main-grid">
+            <!-- Left Column: Converter -->
+            <div class="converter-panel">
+                <!-- Converter Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">Convert to GEL</h2>
+                    </div>
+                    <div class="card-body">
+                        <form id="converterForm">
+                            <div class="form-group">
+                                <label for="datePicker">Date</label>
+                                <input type="date" id="datePicker" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="currencySelect">Currency</label>
+                                <select id="currencySelect" required>
+                                    <option value="">Loading...</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="amountInput">Amount</label>
+                                <input type="number" id="amountInput" placeholder="0.00" step="0.01" min="0" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="userSelect">User</label>
+                                <select id="userSelect" required>
+                                    <option value="user">user</option>
+                                </select>
+                            </div>
+
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="addTransactionCheckbox">
+                                <label for="addTransactionCheckbox">Add as Transaction</label>
+                            </div>
+
+                            <button type="button" id="fetchButton" class="btn btn-primary btn-block">Convert</button>
+                        </form>
+
+                        <!-- Status Messages -->
+                        <div id="loadingMessage" class="status-message status-loading hidden">Loading...</div>
+                        <div id="errorMessage" class="status-message status-error hidden"></div>
+
+                        <!-- Result Display -->
+                        <div id="result" class="result-display hidden"></div>
+                    </div>
+                </div>
             </div>
 
-            <div class="input-group">
-                <label for="currencySelect">Select Currency:</label>
-                <select id="currencySelect">
-                    <option value="">Loading...</option>
-                </select>
+            <!-- Right Column: User Management & Transactions -->
+            <div>
+                <!-- User Management Card -->
+                <div class="card user-management-section">
+                    <div class="card-header">
+                        <h2 class="card-title">User Management</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="btn-group">
+                            <button id="toggleUserManagementButton" class="btn btn-secondary btn-sm" onclick="toggleUserManagement()">
+                                Toggle User List
+                            </button>
+                            <button id="addUserButton" class="btn btn-secondary btn-sm" onclick="addNewUser()">
+                                + Add User
+                            </button>
+                        </div>
+
+                        <div id="userManagementSection" class="collapsible-section hidden">
+                            <div class="user-table-wrapper">
+                                <div id="userList"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Transaction History Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">Transaction History</h2>
+                    </div>
+                    <div class="card-body">
+                        <!-- Filters -->
+                        <div class="filter-panel">
+                            <div class="filter-grid">
+                                <div class="form-group mb-0">
+                                    <label for="filterUser">User</label>
+                                    <select id="filterUser" onchange="filterState.userId = this.value; renderTransactionList(); populateCurrencyFilter();">
+                                        <option value="all">All Users</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group mb-0">
+                                    <label for="filterCurrency">Currency</label>
+                                    <select id="filterCurrency" onchange="filterState.currencyCode = this.value; renderTransactionList();">
+                                        <option value="all">All Currencies</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group mb-0">
+                                    <label for="filterDateFrom">From</label>
+                                    <input type="date" id="filterDateFrom" onchange="filterState.dateFrom = this.value; renderTransactionList();">
+                                </div>
+
+                                <div class="form-group mb-0">
+                                    <label for="filterDateTo">To</label>
+                                    <input type="date" id="filterDateTo" onchange="filterState.dateTo = this.value; renderTransactionList();">
+                                </div>
+                            </div>
+                            <button class="btn btn-secondary btn-sm" onclick="clearFilters()">Clear Filters</button>
+                        </div>
+
+                        <!-- Action Toolbar -->
+                        <div class="action-toolbar">
+                            <button class="btn btn-secondary btn-sm" onclick="exportToCSV()">⬇ Export CSV</button>
+                            <button class="btn btn-secondary btn-sm" onclick="document.getElementById('csvFileInput').click()">⬆ Import CSV</button>
+                            <button class="btn btn-danger btn-sm" onclick="clearAllTransactions()">Clear All</button>
+                            <button class="btn btn-secondary btn-sm" onclick="clearRateCache()">Clear Cache</button>
+                            <input type="file" id="csvFileInput" accept=".csv" class="hidden" onchange="if(this.files.length) importFromCSV(this.files[0])">
+                        </div>
+
+                        <!-- Transaction Table -->
+                        <div id="transactionList"></div>
+                    </div>
+                </div>
             </div>
-
-            <div class="input-group">
-                <label for="amountInput">Enter Amount:</label>
-                <input type="number" id="amountInput" placeholder="Amount in selected currency">
-            </div>
-
-            <button id="fetchButton">Convert to GEL</button><p></p>
-            <label for="addTransactionCheckbox">Add as Transaction:</label>
-            <input type="checkbox" id="addTransactionCheckbox">
-        </div>
-
-        <!-- Status Section -->
-        <div class="status-section">
-            <div id="loadingMessage" style="display:none;">Loading...</div>
-            <div class="error" id="errorMessage"></div>
-        </div>
-
-        <!-- Result Section -->
-        <div class="result-section">
-            <div class="result" id="result"></div>
-        </div>
-
-        <!-- Transaction Management Section -->
-        <div class="transaction-section">
-            <h2>Transaction History</h2>
-
-            <!-- Control Buttons -->
-            <div class="transaction-controls">
-                <button id="exportCSVButton" onclick="exportToCSV()">Export to CSV</button>
-                <button id="importCSVButton" onclick="document.getElementById('csvFileInput').click()">Import from CSV</button>
-                <button id="clearTransactionsButton" onclick="clearAllTransactions()">Clear All Transactions</button>
-                <button id="clearCacheButton" onclick="clearRateCache()">Clear Rate Cache</button>
-                <input type="file" id="csvFileInput" accept=".csv" style="display: none;" onchange="if(this.files.length) importFromCSV(this.files[0])">
-            </div>
-
-            <!-- Transaction List -->
-            <div id="transactionList"></div>
         </div>
     </div>
 
     <script src="script.js"></script>
-
 </body>
 </html>

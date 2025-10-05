@@ -1,4 +1,73 @@
 // ===========================
+// User Management
+// ===========================
+
+// Function to load all users from localStorage
+function loadUsers() {
+    const stored = localStorage.getItem('users');
+    if (!stored) {
+        // Create default user
+        const defaultUser = {id: 'user', name: 'user', taxpayerId: ''};
+        localStorage.setItem('users', JSON.stringify([defaultUser]));
+        return [defaultUser];
+    }
+    return JSON.parse(stored);
+}
+
+// Function to save a user to localStorage
+function saveUser(userData) {
+    const users = loadUsers();
+    const existingIndex = users.findIndex(u => u.id === userData.id);
+
+    if (existingIndex >= 0) {
+        users[existingIndex] = userData;
+    } else {
+        users.push(userData);
+    }
+
+    localStorage.setItem('users', JSON.stringify(users));
+    renderUserList();
+    populateUserSelectors();
+}
+
+// Function to delete a user by ID
+function deleteUser(userId) {
+    const users = loadUsers();
+    const transactions = loadTransactions();
+
+    // Check if user has transactions
+    const userTransactions = transactions.filter(t => t.userId === userId);
+    if (userTransactions.length > 0) {
+        if (!confirm(`This user has ${userTransactions.length} transaction(s). Delete anyway?`)) {
+            return;
+        }
+    }
+
+    // Prevent deleting last user
+    if (users.length <= 1) {
+        alert('Cannot delete the last user.');
+        return;
+    }
+
+    const filtered = users.filter(u => u.id !== userId);
+    localStorage.setItem('users', JSON.stringify(filtered));
+
+    renderUserList();
+    populateUserSelectors();
+}
+
+// Function to get user by ID
+function getUserById(userId) {
+    const users = loadUsers();
+    return users.find(u => u.id === userId);
+}
+
+// Function to generate unique user ID
+function generateUserId() {
+    return 'user_' + Date.now().toString(36) + Math.random().toString(36).substr(2);
+}
+
+// ===========================
 // Transaction Management
 // ===========================
 
@@ -100,8 +169,10 @@ document.getElementById('fetchButton').addEventListener('click', function () {
 
     // Clear previous results
     resultDiv.innerHTML = '';
+    resultDiv.classList.add('hidden');
     errorMessage.textContent = '';
-    loadingMessage.style.display = 'none';
+    errorMessage.classList.add('hidden');
+    loadingMessage.classList.add('hidden');
 
     // Input validation
     if (!date) {
@@ -118,7 +189,7 @@ document.getElementById('fetchButton').addEventListener('click', function () {
     }
 
     // Show loading message
-    loadingMessage.style.display = 'block';
+    loadingMessage.classList.remove('hidden');
 
     // Check if data is cached in localStorage
     const cachedData = localStorage.getItem(`currencyRates_${date}`);
@@ -142,15 +213,16 @@ document.getElementById('fetchButton').addEventListener('click', function () {
                 handleCurrencyData(data, amount, currencyCode, resultDiv, loadingMessage, errorMessage, checkbox.checked);
             })
             .catch(error => {
-                loadingMessage.style.display = 'none';
+                loadingMessage.classList.add('hidden');
                 errorMessage.textContent = `Error: ${error.message}`;
+                errorMessage.classList.remove('hidden');
             });
     }
 });
 
 // Function to handle currency data
 function handleCurrencyData(data, amount, currencyCode, resultDiv, loadingMessage, errorMessage, addAsTransaction) {
-    loadingMessage.style.display = 'none';
+    loadingMessage.classList.add('hidden');
 
     if (!Array.isArray(data) || data.length === 0 || !data[0].currencies) {
         throw new Error('No valid currency data available.');
@@ -170,9 +242,14 @@ function handleCurrencyData(data, amount, currencyCode, resultDiv, loadingMessag
 
     // Display result
     if (addAsTransaction) {
+        // Get selected user
+        const userSelect = document.getElementById('userSelect');
+        const selectedUserId = userSelect ? userSelect.value : 'user';
+
         // Create transaction object
         const transaction = {
             id: generateTransactionId(),
+            userId: selectedUserId,
             date: transactionDate,
             currencyCode: currencyCode,
             currencyName: selectedCurrency.name,
@@ -197,7 +274,7 @@ function handleCurrencyData(data, amount, currencyCode, resultDiv, loadingMessag
             <p>Quantity Factor: <strong>${selectedCurrency.quantity}</strong></p>
         `;
     }
-    resultDiv.style.display = 'block';
+    resultDiv.classList.remove('hidden');
 }
 // Load currencies when date is selected
 document.getElementById('datePicker').addEventListener('change', function () {
@@ -212,9 +289,18 @@ function loadCurrencies() {
 
   // Clear previous errors and loading message
   errorMessage.textContent = '';
-  loadingMessage.style.display = 'none';
+  errorMessage.classList.add('hidden');
+  loadingMessage.classList.add('hidden');
 
   if (!date) return;
+
+  // Validate date is not in future
+  if (!isValidDate(date)) {
+      errorMessage.textContent = 'Cannot select a future date. Please select today or an earlier date.';
+      errorMessage.classList.remove('hidden');
+      currencySelect.innerHTML = '<option value="">Select a currency</option>';
+      return;
+  }
 
   // Show loading
   currencySelect.innerHTML = '<option value="">Loading...</option>';
@@ -242,6 +328,7 @@ function loadCurrencies() {
           })
           .catch(error => {
               errorMessage.textContent = `Error: ${error.message}`;
+              errorMessage.classList.remove('hidden');
           });
   }
 }
@@ -263,36 +350,165 @@ function populateCurrencySelect(data, currencySelect) {
 }
 
 // ===========================
+// Filter and Sort State
+// ===========================
+
+let filterState = {
+    userId: 'all',
+    currencyCode: 'all',
+    dateFrom: '',
+    dateTo: '',
+    sortColumn: 'date',
+    sortDirection: 'desc'
+};
+
+// Function to apply filters to transactions
+function applyFilters(transactions) {
+    let filtered = [...transactions];
+
+    // Filter by user
+    if (filterState.userId !== 'all') {
+        filtered = filtered.filter(t => t.userId === filterState.userId);
+    }
+
+    // Filter by currency
+    if (filterState.currencyCode !== 'all') {
+        filtered = filtered.filter(t => t.currencyCode === filterState.currencyCode);
+    }
+
+    // Filter by date range
+    if (filterState.dateFrom) {
+        filtered = filtered.filter(t => t.date >= filterState.dateFrom);
+    }
+    if (filterState.dateTo) {
+        filtered = filtered.filter(t => t.date <= filterState.dateTo);
+    }
+
+    return filtered;
+}
+
+// Function to sort transactions
+function sortTransactions(transactions) {
+    const sorted = [...transactions];
+    const direction = filterState.sortDirection === 'asc' ? 1 : -1;
+
+    sorted.sort((a, b) => {
+        let aVal, bVal;
+
+        switch (filterState.sortColumn) {
+            case 'date':
+                aVal = new Date(a.date);
+                bVal = new Date(b.date);
+                break;
+            case 'user':
+                const userA = getUserById(a.userId);
+                const userB = getUserById(b.userId);
+                aVal = userA ? userA.name : '';
+                bVal = userB ? userB.name : '';
+                return aVal.localeCompare(bVal) * direction;
+            case 'currency':
+                aVal = a.currencyCode;
+                bVal = b.currencyCode;
+                return aVal.localeCompare(bVal) * direction;
+            case 'amount':
+                aVal = a.amount;
+                bVal = b.amount;
+                break;
+            case 'gel':
+                aVal = a.convertedGEL;
+                bVal = b.convertedGEL;
+                break;
+            default:
+                return 0;
+        }
+
+        if (aVal < bVal) return -1 * direction;
+        if (aVal > bVal) return 1 * direction;
+        return 0;
+    });
+
+    return sorted;
+}
+
+// Function to toggle sort
+function toggleSort(column) {
+    if (filterState.sortColumn === column) {
+        filterState.sortDirection = filterState.sortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+        filterState.sortColumn = column;
+        filterState.sortDirection = 'desc';
+    }
+    renderTransactionList();
+}
+
+// Function to clear all filters
+function clearFilters() {
+    filterState = {
+        userId: 'all',
+        currencyCode: 'all',
+        dateFrom: '',
+        dateTo: '',
+        sortColumn: 'date',
+        sortDirection: 'desc'
+    };
+
+    // Reset filter UI
+    const userFilter = document.getElementById('filterUser');
+    const currencyFilter = document.getElementById('filterCurrency');
+    const dateFromFilter = document.getElementById('filterDateFrom');
+    const dateToFilter = document.getElementById('filterDateTo');
+
+    if (userFilter) userFilter.value = 'all';
+    if (currencyFilter) currencyFilter.value = 'all';
+    if (dateFromFilter) dateFromFilter.value = '';
+    if (dateToFilter) dateToFilter.value = '';
+
+    renderTransactionList();
+}
+
+// ===========================
 // Transaction List Display
 // ===========================
 
 // Function to render transaction list
 function renderTransactionList() {
-    const transactions = loadTransactions();
+    const allTransactions = loadTransactions();
     const transactionListDiv = document.getElementById('transactionList');
 
     if (!transactionListDiv) return;
 
-    if (transactions.length === 0) {
-        transactionListDiv.innerHTML = '<p class="no-transactions">No transactions recorded yet.</p>';
+    if (allTransactions.length === 0) {
+        transactionListDiv.innerHTML = '<p class="no-data">No transactions recorded yet.</p>';
         return;
     }
 
-    // Calculate total GEL
+    // Apply filters and sort
+    let transactions = applyFilters(allTransactions);
+    transactions = sortTransactions(transactions);
+
+    // Calculate total GEL for filtered results
     const totalGEL = transactions.reduce((sum, t) => sum + t.convertedGEL, 0).toFixed(2);
 
-    // Sort transactions by date (newest first)
-    transactions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    // Show filter status
+    const filterStatus = `Showing ${transactions.length} of ${allTransactions.length} transactions`;
+
+    // Get sort indicators
+    const getSortIndicator = (column) => {
+        if (filterState.sortColumn !== column) return '';
+        return filterState.sortDirection === 'asc' ? ' ▲' : ' ▼';
+    };
 
     let tableHTML = `
-        <table class="transaction-table">
+        <p class="filter-status">${filterStatus}</p>
+        <table>
             <thead>
                 <tr>
-                    <th>Date</th>
-                    <th>Currency</th>
-                    <th>Amount</th>
+                    <th onclick="toggleSort('date')" class="sortable">Date${getSortIndicator('date')}</th>
+                    <th onclick="toggleSort('user')" class="sortable">User${getSortIndicator('user')}</th>
+                    <th onclick="toggleSort('currency')" class="sortable">Currency${getSortIndicator('currency')}</th>
+                    <th onclick="toggleSort('amount')" class="sortable">Amount${getSortIndicator('amount')}</th>
                     <th>Rate</th>
-                    <th>GEL Amount</th>
+                    <th onclick="toggleSort('gel')" class="sortable">GEL Amount${getSortIndicator('gel')}</th>
                     <th>Comment</th>
                     <th>Actions</th>
                 </tr>
@@ -302,23 +518,27 @@ function renderTransactionList() {
 
     transactions.forEach(t => {
         const commentId = `comment-${t.id}`;
+        const user = getUserById(t.userId);
+        const userName = user ? user.name : 'Unknown';
+
         tableHTML += `
             <tr>
                 <td>${t.date}</td>
+                <td>${userName}</td>
                 <td>${t.currencyCode} - ${t.currencyName}</td>
                 <td>${t.amount.toFixed(2)}</td>
                 <td>${(t.rate / t.quantity).toFixed(4)}</td>
                 <td>${t.convertedGEL.toFixed(2)}</td>
-                <td class="comment-cell">
+                <td>
                     <input type="text"
                            id="${commentId}"
                            value="${t.comment || ''}"
                            placeholder="Add comment..."
-                           class="comment-input"
+                           class="input-inline"
                            onblur="updateTransactionComment('${t.id}', this.value)">
                 </td>
-                <td class="actions-cell">
-                    <button class="delete-btn" onclick="deleteTransaction('${t.id}')">Delete</button>
+                <td>
+                    <button class="btn btn-danger btn-sm" onclick="deleteTransaction('${t.id}')">Delete</button>
                 </td>
             </tr>
         `;
@@ -328,7 +548,7 @@ function renderTransactionList() {
             </tbody>
             <tfoot>
                 <tr>
-                    <td colspan="4"><strong>Total GEL:</strong></td>
+                    <td colspan="5"><strong>Total GEL:</strong></td>
                     <td colspan="3"><strong>${totalGEL}</strong></td>
                 </tr>
             </tfoot>
@@ -344,30 +564,51 @@ function renderTransactionList() {
 
 // Function to export transactions to CSV
 function exportToCSV() {
-    const transactions = loadTransactions();
+    const allTransactions = loadTransactions();
 
-    if (transactions.length === 0) {
+    if (allTransactions.length === 0) {
         alert('No transactions to export.');
         return;
     }
 
-    // Sort by date
-    transactions.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    // Apply current filters
+    let transactions = applyFilters(allTransactions);
+    transactions = sortTransactions(transactions);
+
+    if (transactions.length === 0) {
+        alert('No transactions to export with current filters.');
+        return;
+    }
 
     // CSV header
-    let csvContent = 'Date,Currency Code,Currency Name,Amount,Exchange Rate,Quantity,Converted GEL,Comment,Timestamp\n';
+    let csvContent = 'Date,User ID,User Name,Taxpayer ID,Currency Code,Currency Name,Amount,Exchange Rate,Quantity,Converted GEL,Comment,Timestamp\n';
 
     // Add rows
     transactions.forEach(t => {
+        const user = getUserById(t.userId);
+        const userName = user ? user.name : '';
+        const taxpayerId = user ? user.taxpayerId : '';
+        const escapedUserName = `"${userName.replace(/"/g, '""')}"`;
+        const escapedCurrencyName = `"${t.currencyName.replace(/"/g, '""')}"`;
         const escapedComment = `"${(t.comment || '').replace(/"/g, '""')}"`;
-        csvContent += `${t.date},${t.currencyCode},"${t.currencyName}",${t.amount},${t.rate},${t.quantity},${t.convertedGEL},${escapedComment},${t.timestamp}\n`;
+
+        csvContent += `${t.date},${t.userId},${escapedUserName},${taxpayerId},${t.currencyCode},${escapedCurrencyName},${t.amount},${t.rate},${t.quantity},${t.convertedGEL},${escapedComment},${t.timestamp}\n`;
     });
 
     // Create blob and download
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
-    const filename = `gel-transactions-${new Date().toISOString().split('T')[0]}.csv`;
+
+    // Filename based on filter
+    let filename;
+    if (filterState.userId !== 'all') {
+        const user = getUserById(filterState.userId);
+        const userName = user ? user.name.replace(/[^a-z0-9]/gi, '_') : 'user';
+        filename = `gel-transactions-${userName}-${new Date().toISOString().split('T')[0]}.csv`;
+    } else {
+        filename = `gel-transactions-all-${new Date().toISOString().split('T')[0]}.csv`;
+    }
 
     link.setAttribute('href', url);
     link.setAttribute('download', filename);
@@ -388,7 +629,6 @@ function importFromCSV(file) {
 
             // Validate header
             const header = lines[0].trim();
-            const expectedHeader = 'Date,Currency Code,Currency Name,Amount,Exchange Rate,Quantity,Converted GEL,Comment,Timestamp';
 
             if (!header.includes('Date') || !header.includes('Currency Code') || !header.includes('Converted GEL')) {
                 throw new Error('Invalid CSV format. Missing required columns.');
@@ -396,8 +636,10 @@ function importFromCSV(file) {
 
             const existingTransactions = loadTransactions();
             const existingTimestamps = new Set(existingTransactions.map(t => t.timestamp));
+            const users = loadUsers();
             let imported = 0;
             let skipped = 0;
+            let usersCreated = 0;
 
             // Parse data rows
             for (let i = 1; i < lines.length; i++) {
@@ -416,9 +658,9 @@ function importFromCSV(file) {
                     values.push(value);
                 }
 
-                if (values.length < 9) continue;
+                if (values.length < 12) continue;
 
-                const timestamp = values[8];
+                const timestamp = values[11];
 
                 // Skip duplicates
                 if (existingTimestamps.has(timestamp)) {
@@ -426,16 +668,28 @@ function importFromCSV(file) {
                     continue;
                 }
 
+                // Check if user exists, create if not
+                const userId = values[1];
+                const userName = values[2];
+                const taxpayerId = values[3];
+
+                if (!getUserById(userId)) {
+                    const newUser = {id: userId, name: userName, taxpayerId: taxpayerId};
+                    users.push(newUser);
+                    usersCreated++;
+                }
+
                 const transaction = {
                     id: generateTransactionId(),
+                    userId: userId,
                     date: values[0],
-                    currencyCode: values[1],
-                    currencyName: values[2],
-                    amount: parseFloat(values[3]),
-                    rate: parseFloat(values[4]),
-                    quantity: parseFloat(values[5]),
-                    convertedGEL: parseFloat(values[6]),
-                    comment: values[7],
+                    currencyCode: values[4],
+                    currencyName: values[5],
+                    amount: parseFloat(values[6]),
+                    rate: parseFloat(values[7]),
+                    quantity: parseFloat(values[8]),
+                    convertedGEL: parseFloat(values[9]),
+                    comment: values[10],
                     timestamp: timestamp
                 };
 
@@ -443,10 +697,13 @@ function importFromCSV(file) {
                 imported++;
             }
 
+            localStorage.setItem('users', JSON.stringify(users));
             localStorage.setItem('transactions', JSON.stringify(existingTransactions));
             renderTransactionList();
+            renderUserList();
+            populateUserSelectors();
 
-            alert(`Import completed!\nImported: ${imported}\nSkipped (duplicates): ${skipped}`);
+            alert(`Import completed!\nImported: ${imported}\nSkipped (duplicates): ${skipped}\nNew users created: ${usersCreated}`);
         } catch (error) {
             alert(`Import failed: ${error.message}`);
         }
@@ -459,9 +716,199 @@ function importFromCSV(file) {
     reader.readAsText(file);
 }
 
+// ===========================
+// User List Display
+// ===========================
+
+// Function to render user list
+function renderUserList() {
+    const users = loadUsers();
+    const userListDiv = document.getElementById('userList');
+
+    if (!userListDiv) return;
+
+    if (users.length === 0) {
+        userListDiv.innerHTML = '<p class="no-data">No users found.</p>';
+        return;
+    }
+
+    let tableHTML = `
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Taxpayer ID</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    users.forEach(u => {
+        const nameId = `userName-${u.id}`;
+        const taxpayerId = `userTaxpayerId-${u.id}`;
+
+        tableHTML += `
+            <tr>
+                <td>
+                    <input type="text"
+                           id="${nameId}"
+                           value="${u.name}"
+                           class="input-inline"
+                           onblur="updateUserField('${u.id}', 'name', this.value)">
+                </td>
+                <td>
+                    <input type="text"
+                           id="${taxpayerId}"
+                           value="${u.taxpayerId}"
+                           class="input-inline"
+                           onblur="updateUserField('${u.id}', 'taxpayerId', this.value)">
+                </td>
+                <td>
+                    <button class="btn btn-danger btn-sm" onclick="deleteUser('${u.id}')">Delete</button>
+                </td>
+            </tr>
+        `;
+    });
+
+    tableHTML += `
+            </tbody>
+        </table>
+    `;
+
+    userListDiv.innerHTML = tableHTML;
+}
+
+// Function to update user field
+function updateUserField(userId, field, value) {
+    const user = getUserById(userId);
+    if (user) {
+        user[field] = value;
+        saveUser(user);
+    }
+}
+
+// Function to populate user selectors
+function populateUserSelectors() {
+    const users = loadUsers();
+
+    // Populate transaction user selector
+    const userSelect = document.getElementById('userSelect');
+    if (userSelect) {
+        const currentValue = userSelect.value || 'user';
+        userSelect.innerHTML = '';
+        users.forEach(u => {
+            const option = document.createElement('option');
+            option.value = u.id;
+            option.textContent = u.name;
+            userSelect.appendChild(option);
+        });
+        userSelect.value = currentValue;
+    }
+
+    // Populate filter user selector
+    const filterUser = document.getElementById('filterUser');
+    if (filterUser) {
+        const currentFilter = filterUser.value || 'all';
+        filterUser.innerHTML = '<option value="all">All Users</option>';
+        users.forEach(u => {
+            const option = document.createElement('option');
+            option.value = u.id;
+            option.textContent = u.name;
+            filterUser.appendChild(option);
+        });
+        filterUser.value = currentFilter;
+    }
+
+    // Populate filter currency selector
+    populateCurrencyFilter();
+}
+
+// Function to populate currency filter
+function populateCurrencyFilter() {
+    const transactions = loadTransactions();
+    const currencies = new Set();
+
+    transactions.forEach(t => {
+        currencies.add(t.currencyCode);
+    });
+
+    const filterCurrency = document.getElementById('filterCurrency');
+    if (filterCurrency) {
+        const currentFilter = filterCurrency.value || 'all';
+        filterCurrency.innerHTML = '<option value="all">All Currencies</option>';
+
+        Array.from(currencies).sort().forEach(code => {
+            const option = document.createElement('option');
+            option.value = code;
+            option.textContent = code;
+            filterCurrency.appendChild(option);
+        });
+
+        filterCurrency.value = currentFilter;
+    }
+}
+
+// Function to add new user
+function addNewUser() {
+    const userName = prompt('Enter user name:');
+    if (!userName) return;
+
+    const taxpayerId = prompt('Enter taxpayer ID (optional):') || '';
+
+    const newUser = {
+        id: generateUserId(),
+        name: userName,
+        taxpayerId: taxpayerId
+    };
+
+    saveUser(newUser);
+}
+
+// Function to toggle user management section
+function toggleUserManagement() {
+    const userSection = document.getElementById('userManagementSection');
+    if (userSection) {
+        userSection.classList.toggle('hidden');
+    }
+}
+
+// Function to get today's date in YYYY-MM-DD format
+function getTodayDate() {
+    return new Date().toISOString().split('T')[0];
+}
+
+// Function to set max date on date inputs
+function setMaxDates() {
+    const today = getTodayDate();
+    const datePicker = document.getElementById('datePicker');
+    const filterDateFrom = document.getElementById('filterDateFrom');
+    const filterDateTo = document.getElementById('filterDateTo');
+
+    if (datePicker) datePicker.max = today;
+    if (filterDateFrom) filterDateFrom.max = today;
+    if (filterDateTo) filterDateTo.max = today;
+}
+
+// Function to validate date is not in future
+function isValidDate(dateString) {
+    if (!dateString) return false;
+    const selectedDate = new Date(dateString);
+    const today = new Date(getTodayDate());
+    return selectedDate <= today;
+}
+
 // Set default date to today and load currencies
 window.onload = function () {
-  document.getElementById('datePicker').value = new Date().toISOString().split('T')[0];
+  loadCheckboxState();
+  const today = getTodayDate();
+  document.getElementById('datePicker').value = today;
+  setMaxDates();
   loadCurrencies();
   renderTransactionList();
+  renderUserList();
+  populateUserSelectors();
+
+  // Save checkbox state when changed
+  document.getElementById('addTransactionCheckbox').addEventListener('change', saveCheckboxState);
 };
