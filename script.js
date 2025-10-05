@@ -81,6 +81,36 @@ function formatCurrency(value) {
     return value.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 }
 
+// Function to get currency symbol
+function getCurrencySymbol(currencyCode) {
+    const symbols = {
+        'GEL': '₾',
+        'USD': '$',
+        'EUR': '€',
+        'GBP': '£',
+        'RUB': '₽',
+        'TRY': '₺',
+        'JPY': '¥',
+        'CNY': '¥',
+        'CHF': 'CHF',
+        'AUD': 'A$',
+        'CAD': 'C$',
+        'INR': '₹',
+        'KRW': '₩',
+        'BRL': 'R$',
+        'ZAR': 'R',
+        'SEK': 'kr',
+        'NOK': 'kr',
+        'DKK': 'kr',
+        'PLN': 'zł',
+        'ILS': '₪',
+        'AED': 'د.إ',
+        'SAR': '﷼',
+        'THB': '฿'
+    };
+    return symbols[currencyCode] || currencyCode;
+}
+
 // Function to calculate Year-to-Date income for a specific transaction
 function calculateYTDForTransaction(transaction, allTransactions) {
     const year = new Date(transaction.date).getFullYear();
@@ -176,6 +206,48 @@ function loadCheckboxState() {
     } else {
         checkbox.checked = false;
     }
+}
+
+// ===========================
+// Collapsible Sections
+// ===========================
+
+// Function to toggle collapsible sections
+function toggleCollapsible(sectionId) {
+    const content = document.getElementById(`${sectionId}-content`);
+    const icon = document.getElementById(`${sectionId}-icon`);
+
+    if (!content || !icon) return;
+
+    const isCollapsed = content.classList.contains('collapsed');
+
+    if (isCollapsed) {
+        // Expand
+        content.classList.remove('collapsed');
+        icon.classList.remove('collapsed');
+        sessionStorage.setItem(`collapsible_${sectionId}`, 'expanded');
+    } else {
+        // Collapse
+        content.classList.add('collapsed');
+        icon.classList.add('collapsed');
+        sessionStorage.setItem(`collapsible_${sectionId}`, 'collapsed');
+    }
+}
+
+// Function to restore collapsible states from sessionStorage
+function restoreCollapsibleStates() {
+    const sections = ['disclaimer', 'howItWorks'];
+
+    sections.forEach(sectionId => {
+        const state = sessionStorage.getItem(`collapsible_${sectionId}`);
+        const content = document.getElementById(`${sectionId}-content`);
+        const icon = document.getElementById(`${sectionId}-icon`);
+
+        if (content && icon && state === 'collapsed') {
+            content.classList.add('collapsed');
+            icon.classList.add('collapsed');
+        }
+    });
 }
 
 // Load checkbox state on page load
@@ -604,16 +676,17 @@ function renderTransactionList() {
         const user = getUserById(t.userId);
         const userName = user ? user.name : 'Unknown';
         const ytdIncome = calculateYTDForTransaction(t, allTransactions);
+        const currencySymbol = getCurrencySymbol(t.currencyCode);
 
         tableHTML += `
             <tr>
                 <td>${t.date}</td>
                 <td>${userName}</td>
                 <td>${t.currencyCode} - ${t.currencyName}</td>
-                <td>${formatCurrency(t.amount)}</td>
+                <td>${currencySymbol} ${formatCurrency(t.amount)}</td>
                 <td>${(t.rate / t.quantity).toFixed(4)}</td>
-                <td>${formatCurrency(t.convertedGEL)}</td>
-                <td><strong>${formatCurrency(ytdIncome)}</strong></td>
+                <td>₾ ${formatCurrency(t.convertedGEL)}</td>
+                <td><strong>₾ ${formatCurrency(ytdIncome)}</strong></td>
                 <td>
                     <input type="text"
                             id="${commentId}"
@@ -623,7 +696,7 @@ function renderTransactionList() {
                             onblur="updateTransactionComment('${t.id}', this.value)">
                 </td>
                 <td>
-                    <button class="btn btn-danger btn-sm" onclick="deleteTransaction('${t.id}')">Delete</button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteTransaction('${t.id}')">🗑️</button>
                 </td>
             </tr>
         `;
@@ -634,7 +707,7 @@ function renderTransactionList() {
             <tfoot>
                 <tr>
                     <td colspan="5"><strong>Total GEL:</strong></td>
-                    <td colspan="4"><strong>${formatCurrency(parseFloat(totalGEL))}</strong></td>
+                    <td colspan="4"><strong>₾ ${formatCurrency(parseFloat(totalGEL))}</strong></td>
                 </tr>
             </tfoot>
         </table>
@@ -853,7 +926,7 @@ function renderUserList() {
                            onblur="updateUserField('${u.id}', 'taxpayerId', this.value)">
                 </td>
                 <td>
-                    <button class="btn btn-danger btn-sm" onclick="deleteUser('${u.id}')">Delete</button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteUser('${u.id}')">🗑️</button>
                 </td>
             </tr>
         `;
@@ -989,6 +1062,7 @@ function isValidDate(dateString) {
 // Set default date to today and load currencies
 window.onload = function () {
     loadCheckboxState();
+    restoreCollapsibleStates(); // Restore collapsible section states
     const today = getTodayDate();
     document.getElementById('datePicker').value = today;
     setMaxDates();
@@ -999,4 +1073,12 @@ window.onload = function () {
 
     // Save checkbox state when changed
     document.getElementById('addTransactionCheckbox').addEventListener('change', saveCheckboxState);
+
+    // Allow Enter key in amount field to trigger convert button
+    document.getElementById('amountInput').addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            document.getElementById('fetchButton').click();
+        }
+    });
 };

@@ -10,6 +10,7 @@
     <!-- App Header -->
     <header class="app-header">
         <h1>Currency to GEL Converter</h1>
+        <p class="subtitle">I've made this tool to fill tax declaration on rs.ge for myself. You can use it too.</p>
     </header>
 
     <!-- Main App Container -->
@@ -64,10 +65,73 @@
                         <div id="result" class="result-display hidden"></div>
                     </div>
                 </div>
+
+                <!-- Disclaimer Section -->
+                <div class="card disclaimer-card">
+                    <div class="card-header collapsible-header" onclick="toggleCollapsible('disclaimer')">
+                        <h2 class="card-title">⚠️ Disclaimer</h2>
+                        <span class="collapse-icon" id="disclaimer-icon">▼</span>
+                    </div>
+                    <div class="card-body collapsible-content" id="disclaimer-content">
+                        <p><strong>This tool is provided for informational purposes only and should not be considered as professional tax or financial advice.</strong></p>
+                        <ul>
+                            <li><strong>No Warranty:</strong> This application is provided "as is" without any warranties, express or implied. The accuracy of currency conversions and calculations is not guaranteed.</li>
+                            <li><strong>Not Tax Advice:</strong> This tool does not constitute tax, legal, or financial advice. Always consult with a qualified tax professional or accountant for your specific situation.</li>
+                            <li><strong>User Responsibility:</strong> You are solely responsible for verifying all data, calculations, and information before using them for official tax declarations or any other purpose.</li>
+                            <li><strong>Data Storage:</strong> All data is stored locally in your browser. No information is sent to external servers. However, you are responsible for backing up your data.</li>
+                            <li><strong>Official Rates:</strong> Exchange rates are fetched from the National Bank of Georgia API. Always verify rates with official sources before submitting tax documents.</li>
+                        </ul>
+                        <p><strong>By using this tool, you acknowledge that you understand and accept these terms.</strong></p>
+                    </div>
+                </div>
+
+                <!-- How It Works Section -->
+                <div class="card info-card">
+                    <div class="card-header collapsible-header" onclick="toggleCollapsible('howItWorks')">
+                        <h2 class="card-title">ℹ️ How It Works</h2>
+                        <span class="collapse-icon" id="howItWorks-icon">▼</span>
+                    </div>
+                    <div class="card-body collapsible-content" id="howItWorks-content">
+                        <h3>Overview</h3>
+                        <p>This tool helps Georgian small business owners track foreign currency income and convert it to Georgian Lari (GEL) using official National Bank of Georgia exchange rates for tax declaration purposes.</p>
+
+                        <h3>Key Features</h3>
+                        <ul>
+                            <li><strong>Official Exchange Rates:</strong> Uses National Bank of Georgia's official daily rates</li>
+                            <li><strong>Historical Data:</strong> Access exchange rates for any past date</li>
+                            <li><strong>Multi-User Support:</strong> Track transactions for multiple individuals or business entities</li>
+                            <li><strong>Year-to-Date (YTD) Calculation:</strong> Automatically calculates running totals per user per calendar year</li>
+                            <li><strong>Data Export/Import:</strong> Export to CSV for backup or import into spreadsheet applications</li>
+                            <li><strong>Offline Storage:</strong> All data stored locally in your browser - works offline after initial load</li>
+                        </ul>
+
+                        <h3>How to Use</h3>
+                        <ol>
+                            <li><strong>Set Up Users:</strong> Click "User Management" → "+ Add User" to create profiles for each person/entity</li>
+                            <li><strong>Convert Currency:</strong>
+                                <ul>
+                                    <li>Select the transaction date (uses official NBG rate for that date)</li>
+                                    <li>Choose the currency (GEL for local transactions, or foreign currency)</li>
+                                    <li>Enter the amount received</li>
+                                    <li>Select the user</li>
+                                    <li>Check "Add as Transaction" to save it to the history</li>
+                                </ul>
+                            </li>
+                            <li><strong>Review Transactions:</strong> View all transactions with automatic YTD income calculation</li>
+                            <li><strong>Export for Tax Filing:</strong> Use the "Export CSV" button to download data for your accountant or tax records</li>
+                        </ol>
+
+                        <h3>Understanding YTD Income</h3>
+                        <p>The Year-to-Date (YTD) Income column shows the cumulative GEL income for each user from January 1st through the transaction date. This helps track when income thresholds are reached for tax purposes.</p>
+
+                        <h3>Data Privacy</h3>
+                        <p>All data is stored exclusively in your browser's local storage. No information is transmitted to any server except for fetching exchange rates from the National Bank of Georgia's public API. Clear your browser data will delete all transactions.</p>
+                    </div>
+                </div>
             </div>
 
             <!-- Right Column: User Management & Transactions -->
-            <div>
+            <div class="right-panel">
                 <!-- User Management Card -->
                 <div class="card user-management-section">
                     <div class="card-header">
@@ -143,6 +207,39 @@
             </div>
         </div>
     </div>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+        <div class="footer-container">
+            <div class="footer-section">
+                <h3>About This Tool</h3>
+                <p>Currency to GEL Converter helps Georgian small business owners track foreign currency income using official National Bank of Georgia exchange rates.</p>
+            </div>
+            <div class="footer-section">
+                <h3>Data Sources</h3>
+                <p><strong>Exchange Rates:</strong> <a href="https://nbg.gov.ge" target="_blank" rel="noopener noreferrer">National Bank of Georgia API</a></p>
+                <p><strong>Storage:</strong> All data stored locally in your browser</p>
+            </div>
+            <div class="footer-section">
+                <h3>Important Links</h3>
+                <ul>
+                    <li><a href="https://nbg.gov.ge/en/monetary-policy/currency" target="_blank" rel="noopener noreferrer">NBG Official Rates</a></li>
+                    <li><a href="https://rs.ge" target="_blank" rel="noopener noreferrer">Revenue Service of Georgia</a></li>
+                    <li><a href="https://github.com/5mdt/georgian-small-business-income-declaration" target="_blank" rel="noopener noreferrer">GitHub Repository</a></li>
+                </ul>
+            </div>
+            <div class="footer-section">
+                <h3>Legal</h3>
+                <p>This tool is provided "as is" for informational purposes only. Always consult a tax professional for official advice.</p>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>2025 Georgian small business income declaration helper tool. </p>
+            <p>Not affiliated with the National Bank of Georgia or Revenue Service of Georgia.</p>
+            <p>Open source tool for the Georgian business community.</p>
+            <p>Design uses <a href="https://www.nordtheme.com/" target="_blank" rel="noopener noreferrer">Nord color scheme</a>.</p>
+        </div>
+    </footer>
 
     <script src="script.js"></script>
 </body>

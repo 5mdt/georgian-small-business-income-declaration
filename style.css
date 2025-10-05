@@ -137,6 +137,13 @@ body {
   margin: 0;
 }
 
+.app-header .subtitle {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  margin-top: var(--spacing-xs);
+}
+
 .app-container {
   max-width: 1400px;
   margin: 0 auto;
@@ -149,9 +156,27 @@ body {
   gap: var(--spacing-lg);
 }
 
+/* Mobile: converter-panel (order 1), right-panel (order 2) */
+.converter-panel {
+  order: 1;
+}
+
+.right-panel {
+  order: 2;
+}
+
 @media (min-width: 1024px) {
   .main-grid {
     grid-template-columns: 380px 1fr;
+  }
+
+  /* Desktop: converter-panel stays in left column, right-panel in right column */
+  .converter-panel {
+    order: 0;
+  }
+
+  .right-panel {
+    order: 0;
   }
 }
 
@@ -173,6 +198,42 @@ body {
   border-bottom: 1px solid var(--border-light);
 }
 
+.card-header.collapsible-header {
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.card-header.collapsible-header:hover {
+  opacity: 0.8;
+}
+
+.collapse-icon {
+  font-size: 1rem;
+  transition: transform 0.3s ease;
+  color: var(--text-secondary);
+}
+
+.collapse-icon.collapsed {
+  transform: rotate(-90deg);
+}
+
+.collapsible-content {
+  max-height: 5000px;
+  overflow: hidden;
+  transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
+  opacity: 1;
+}
+
+.collapsible-content.collapsed {
+  max-height: 0;
+  opacity: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
 .card-title {
   font-size: 1.25rem;
   font-weight: 600;
@@ -182,6 +243,60 @@ body {
 
 .card-body {
   padding: var(--spacing-sm) 0;
+}
+
+/* Disclaimer and Info Cards */
+.disclaimer-card {
+  border-left: 4px solid var(--error);
+  background-color: #fff5f5;
+}
+
+.disclaimer-card .card-title {
+  color: var(--error);
+}
+
+.disclaimer-card ul {
+  margin: var(--spacing-md) 0;
+  padding-left: var(--spacing-lg);
+}
+
+.disclaimer-card li {
+  margin-bottom: var(--spacing-sm);
+}
+
+.info-card {
+  border-left: 4px solid var(--info);
+  background-color: #f0f9ff;
+}
+
+.info-card .card-title {
+  color: var(--info);
+}
+
+.info-card h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-top: var(--spacing-md);
+  margin-bottom: var(--spacing-sm);
+}
+
+.info-card h3:first-child {
+  margin-top: 0;
+}
+
+.info-card ul,
+.info-card ol {
+  margin: var(--spacing-sm) 0;
+  padding-left: var(--spacing-lg);
+}
+
+.info-card li {
+  margin-bottom: var(--spacing-xs);
+}
+
+.info-card ul ul {
+  margin-top: var(--spacing-xs);
 }
 
 /* ===========================
@@ -696,4 +811,96 @@ tfoot td {
 
 .hidden {
   display: none;
+}
+
+/* ===========================
+   Footer
+   =========================== */
+
+.app-footer {
+  background-color: var(--bg-card);
+  margin-top: var(--spacing-xl);
+  padding: var(--spacing-xl) var(--spacing-md);
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
+  border-top: 1px solid var(--border-light);
+}
+
+.footer-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+}
+
+@media (min-width: 768px) {
+  .footer-container {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .footer-container {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.footer-section h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--accent-secondary);
+  margin-bottom: var(--spacing-sm);
+}
+
+.footer-section p {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: var(--spacing-xs);
+}
+
+.footer-section ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.footer-section li {
+  margin-bottom: var(--spacing-xs);
+}
+
+.footer-section a {
+  color: var(--accent-primary);
+  text-decoration: none;
+  font-size: 0.875rem;
+  transition: color 0.2s ease;
+}
+
+.footer-section a:hover {
+  color: var(--accent-primary-hover);
+  text-decoration: underline;
+}
+
+.footer-bottom {
+  text-align: center;
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--border-light);
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+}
+
+.footer-bottom p {
+  margin: var(--spacing-xs) 0;
+}
+
+.footer-bottom a {
+  color: var(--accent-primary);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.footer-bottom a:hover {
+  color: var(--accent-primary-hover);
+  text-decoration: underline;
 }
