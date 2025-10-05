@@ -30,7 +30,9 @@
                 <input type="number" id="amountInput" placeholder="Amount in selected currency">
             </div>
 
-            <button id="fetchButton">Convert to GEL</button>
+            <button id="fetchButton">Convert to GEL</button><p></p>
+            <label for="addTransactionCheckbox">Add as Transaction:</label>
+            <input type="checkbox" id="addTransactionCheckbox">
         </div>
 
         <!-- Status Section -->
@@ -42,6 +44,23 @@
         <!-- Result Section -->
         <div class="result-section">
             <div class="result" id="result"></div>
+        </div>
+
+        <!-- Transaction Management Section -->
+        <div class="transaction-section">
+            <h2>Transaction History</h2>
+
+            <!-- Control Buttons -->
+            <div class="transaction-controls">
+                <button id="exportCSVButton" onclick="exportToCSV()">Export to CSV</button>
+                <button id="importCSVButton" onclick="document.getElementById('csvFileInput').click()">Import from CSV</button>
+                <button id="clearTransactionsButton" onclick="clearAllTransactions()">Clear All Transactions</button>
+                <button id="clearCacheButton" onclick="clearRateCache()">Clear Rate Cache</button>
+                <input type="file" id="csvFileInput" accept=".csv" style="display: none;" onchange="if(this.files.length) importFromCSV(this.files[0])">
+            </div>
+
+            <!-- Transaction List -->
+            <div id="transactionList"></div>
         </div>
     </div>
 

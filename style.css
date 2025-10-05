@@ -146,6 +146,118 @@ table tr:hover {
   color: var(--nord-2);
 }
 
+/* Transaction Section */
+.transaction-section {
+  margin-top: 3em;
+}
+
+.transaction-section h2 {
+  font-size: 1.5em;
+  color: var(--nord-10);
+  margin-bottom: 1em;
+}
+
+.transaction-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1em;
+  margin-bottom: 2em;
+  justify-content: center;
+}
+
+.transaction-controls button {
+  max-width: 12em;
+  font-size: 0.9em;
+  padding: 0.8em 1.5em;
+}
+
+/* Transaction Table */
+.transaction-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1.5em;
+  background-color: var(--nord-2);
+}
+
+.transaction-table th,
+.transaction-table td {
+  padding: 0.8em;
+  text-align: left;
+  border-bottom: 1px solid var(--nord-4);
+}
+
+.transaction-table th {
+  background-color: var(--nord-5);
+  color: var(--nord-2);
+  font-weight: bold;
+}
+
+.transaction-table td {
+  background-color: var(--nord-1);
+  color: var(--nord-3);
+}
+
+.transaction-table tbody tr:hover {
+  background-color: var(--nord-0);
+}
+
+.transaction-table tfoot td {
+  background-color: var(--nord-6);
+  color: var(--nord-2);
+  font-weight: bold;
+  font-size: 1.1em;
+}
+
+/* Comment Input */
+.comment-cell {
+  min-width: 12em;
+}
+
+.comment-input {
+  width: 100%;
+  padding: 0.5em;
+  font-size: 0.9em;
+  border: 1px solid var(--nord-4);
+  background-color: var(--nord-2);
+  color: var(--nord-3);
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+.comment-input:focus {
+  border-color: var(--nord-6);
+  outline: none;
+}
+
+/* Action Buttons */
+.actions-cell {
+  text-align: center;
+}
+
+.delete-btn {
+  padding: 0.5em 1em;
+  font-size: 0.85em;
+  background-color: var(--nord-9);
+  color: var(--nord-2);
+  border: none;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.3s ease;
+  max-width: 8em;
+}
+
+.delete-btn:hover {
+  background-color: #a54e56;
+}
+
+/* No Transactions Message */
+.no-transactions {
+  text-align: center;
+  color: var(--nord-5);
+  font-style: italic;
+  margin-top: 2em;
+}
+
 /* Media Queries */
 @media (max-width: 38em) {
   h1 {
@@ -164,6 +276,27 @@ table tr:hover {
   button {
     font-size: 1em;
     padding: 0.8em 1.5em;
+  }
+
+  .transaction-controls {
+    flex-direction: column;
+  }
+
+  .transaction-controls button {
+    max-width: 100%;
+  }
+
+  .transaction-table {
+    font-size: 0.85em;
+  }
+
+  .transaction-table th,
+  .transaction-table td {
+    padding: 0.5em;
+  }
+
+  .comment-cell {
+    min-width: 8em;
   }
 }
 
