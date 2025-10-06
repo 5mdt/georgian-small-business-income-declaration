@@ -248,7 +248,7 @@ body {
 /* Disclaimer and Info Cards */
 .disclaimer-card {
   border-left: 4px solid var(--error);
-  background-color: #fff5f5;
+  background-color: var(--bg-card);
 }
 
 .disclaimer-card .card-title {
@@ -266,7 +266,7 @@ body {
 
 .info-card {
   border-left: 4px solid var(--info);
-  background-color: #f0f9ff;
+  background-color: var(--bg-card);
 }
 
 .info-card .card-title {
