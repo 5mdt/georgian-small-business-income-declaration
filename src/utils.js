@@ -128,7 +128,7 @@ export function getCurrencySymbol(currencyCode) {
  * @returns {string} Unique user ID
  */
 export function generateUserId() {
-    return 'user_' + Date.now().toString(36) + Math.random().toString(36).substr(2);
+    return 'user_' + Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
 
 /**
@@ -136,7 +136,7 @@ export function generateUserId() {
  * @returns {string} Unique transaction ID
  */
 export function generateTransactionId() {
-    return Date.now().toString(36) + Math.random().toString(36).substr(2);
+    return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
 
 // ===========================

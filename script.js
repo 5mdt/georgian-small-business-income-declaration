@@ -71,10 +71,6 @@ function sanitizeInput(text) {
     return div.innerHTML;
 }
 
-// ===========================
-// DOM Utilities
-// ===========================
-
 function showElement(element) {
     if (element) element.classList.remove('hidden');
 }

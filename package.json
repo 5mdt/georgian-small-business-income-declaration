@@ -8,8 +8,8 @@
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
-    "lint": "eslint *.js src/**/*.js",
-    "lint:fix": "eslint *.js src/**/*.js --fix"
+    "lint": "eslint *.js src/**/*.js tests/**/*.js",
+    "lint:fix": "eslint *.js src/**/*.js tests/**/*.js --fix"
   },
   "keywords": [
     "currency",
