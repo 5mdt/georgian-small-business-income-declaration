@@ -1,0 +1,31 @@
+{
+  "name": "georgian-small-business-income-declaration-helper",
+  "version": "1.0.0",
+  "description": "Currency to GEL Converter for Georgian small business owners",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint *.js src/**/*.js",
+    "lint:fix": "eslint *.js src/**/*.js --fix"
+  },
+  "keywords": [
+    "currency",
+    "converter",
+    "georgia",
+    "tax",
+    "nbg"
+  ],
+  "author": "",
+  "license": "GPL-3.0",
+  "devDependencies": {
+    "@testing-library/dom": "^10.4.0",
+    "@vitest/coverage-v8": "^2.1.8",
+    "@vitest/ui": "^2.1.8",
+    "eslint": "^9.17.0",
+    "jsdom": "^25.0.1",
+    "vitest": "^2.1.8"
+  }
+}

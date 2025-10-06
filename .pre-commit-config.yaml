@@ -30,3 +30,11 @@ repos:
       - id: detect-aws-credentials
       - id: detect-private-key
       # - id: no-commit-to-branch
+  - repo: local
+    hooks:
+      - id: run-tests
+        name: Run unit tests
+        entry: npm test
+        language: system
+        pass_filenames: false
+        stages: [commit]

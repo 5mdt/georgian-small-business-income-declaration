@@ -70,15 +70,50 @@ Simply open `index.html` in your web browser
 ### Code Quality
 
 ```bash
-# Run pre-commit hooks
+# Run pre-commit hooks (includes tests)
 pre-commit run --all-files
 
 # Run ESLint
-npx eslint *.js
+npm run lint
 
 # Check JavaScript syntax
 node --check script.js
 ```
+
+### Testing
+
+The project uses [Vitest](https://vitest.dev/) for unit testing with comprehensive test coverage.
+
+```bash
+# Install dependencies
+npm install
+
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with UI
+npm run test:ui
+
+# Generate coverage report
+npm run test:coverage
+```
+
+**Test Coverage:**
+- Validation functions (date, amount, currency code, user, transaction)
+- Currency conversion and formatting
+- Year-to-Date (YTD) calculations
+- CSV parsing and validation
+- Utility functions (ID generation, debouncing, etc.)
+
+Tests are located in `tests/unit/` with the following structure:
+- `validation.test.js` - Input validation tests
+- `formatting.test.js` - Currency formatting tests
+- `calculations.test.js` - YTD and conversion calculations
+- `csv.test.js` - CSV import/export functionality
+- `utils.test.js` - Utility function tests
 
 ### Deployment
 
