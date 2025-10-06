@@ -3,3 +3,16 @@
 !.gitignore
 !.htmlhintrc
 !.pre-commit-config.yaml
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Vitest
+.vitest/

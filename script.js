@@ -1,33 +1,24 @@
-// ===========================
-// Constants
-// ===========================
-
-const CURRENCY_SYMBOLS = {
-    'GEL': '₾', 'USD': '$', 'EUR': '€', 'GBP': '£', 'RUB': '₽',
-    'TRY': '₺', 'JPY': '¥', 'CNY': '¥', 'CHF': 'CHF', 'AUD': 'A$',
-    'CAD': 'C$', 'INR': '₹', 'KRW': '₩', 'BRL': 'R$', 'ZAR': 'R',
-    'SEK': 'kr', 'NOK': 'kr', 'DKK': 'kr', 'PLN': 'zł', 'ILS': '₪',
-    'AED': 'د.إ', 'SAR': '﷼', 'THB': '฿'
-};
-
-const ERROR_MESSAGES = {
-    NO_DATE: 'Please select a date.',
-    NO_CURRENCY: 'Please select a currency.',
-    INVALID_AMOUNT: 'Please enter a valid amount.',
-    FUTURE_DATE: 'Cannot select a future date. Please select today or an earlier date.',
-    INVALID_DATE: 'Invalid date format.',
-    CORRUPTED_DATA: 'Data storage corrupted. Resetting to defaults.',
-    QUOTA_EXCEEDED: 'Storage quota exceeded. Please export and clear old data.',
-    INVALID_CSV: 'Invalid CSV format. Missing required columns.',
-    API_ERROR: 'Failed to fetch exchange rates. Please try again.',
-    NO_CURRENCY_DATA: 'No valid currency data available.',
-    CURRENCY_NOT_FOUND: 'Selected currency not found.'
-};
-
-const MAX_AMOUNT = 1000000000;
-const MIN_YEAR = 2000;
-const API_TIMEOUT = 10000;
-const FILTER_DEBOUNCE_MS = 300;
+// Import utility functions
+import {
+    ERROR_MESSAGES,
+    API_TIMEOUT,
+    FILTER_DEBOUNCE_MS,
+    validateUser,
+    validateTransaction,
+    formatCurrency,
+    getCurrencySymbol,
+    generateUserId,
+    generateTransactionId,
+    convertToGEL,
+    precalculateAllYTD,
+    calculateYTDForTransaction,
+    validateCSVHeader,
+    parseCSVLine,
+    validateCSVRow,
+    buildUserLookupMap,
+    createDefaultUser,
+    debounce
+} from './src/utils.js';
 
 // ===========================
 // Storage Utilities
@@ -70,7 +61,7 @@ function removeFromStorage(key) {
 }
 
 // ===========================
-// Validation Utilities
+// DOM Utilities
 // ===========================
 
 function sanitizeInput(text) {
@@ -78,56 +69,6 @@ function sanitizeInput(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
-}
-
-function validateDateString(dateString) {
-    if (!dateString) return false;
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return false;
-    const year = date.getFullYear();
-    if (year < MIN_YEAR || year > 2100) return false;
-    return true;
-}
-
-function validateAmount(amount) {
-    if (typeof amount !== 'number') return false;
-    if (isNaN(amount) || !isFinite(amount)) return false;
-    if (amount <= 0 || amount > MAX_AMOUNT) return false;
-    return true;
-}
-
-function validateCurrencyCode(code) {
-    if (!code || typeof code !== 'string') return false;
-    return /^[A-Z]{3}$/.test(code);
-}
-
-function validateUser(user) {
-    if (!user || typeof user !== 'object') return false;
-    if (!user.id || typeof user.id !== 'string') return false;
-    if (!user.name || typeof user.name !== 'string') return false;
-    return true;
-}
-
-function validateTransaction(transaction) {
-    if (!transaction || typeof transaction !== 'object') return false;
-    if (!transaction.id || !transaction.userId) return false;
-    if (!validateDateString(transaction.date)) return false;
-    if (!validateCurrencyCode(transaction.currencyCode)) return false;
-    if (!validateAmount(transaction.amount)) return false;
-    if (!validateAmount(transaction.convertedGEL)) return false;
-    return true;
-}
-
-// ===========================
-// DOM Utilities
-// ===========================
-
-function createOption(value, text, selected = false) {
-    const option = document.createElement('option');
-    option.value = value;
-    option.textContent = text;
-    if (selected) option.selected = true;
-    return option;
 }
 
 function showElement(element) {
@@ -153,32 +94,8 @@ function hideError(elementId) {
 }
 
 // ===========================
-// Performance Utilities
-// ===========================
-
-function debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-    };
-}
-
-function buildUserLookupMap(users) {
-    return new Map(users.map(u => [u.id, u]));
-}
-
-// ===========================
 // User Management
 // ===========================
-
-function createDefaultUser() {
-    return { id: 'user', name: 'user', taxpayerId: '' };
-}
 
 function loadUsers() {
     const users = getFromStorage('users');
@@ -299,83 +216,9 @@ function getUserById(userId) {
     return users.find(u => u.id === userId);
 }
 
-// Function to generate unique user ID
-function generateUserId() {
-    return 'user_' + Date.now().toString(36) + Math.random().toString(36).substr(2);
-}
-
 // ===========================
 // Transaction Management
 // ===========================
-
-function generateTransactionId() {
-    return Date.now().toString(36) + Math.random().toString(36).substr(2);
-}
-
-function formatCurrency(value) {
-    if (!isFinite(value)) return '0.00';
-    return value.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-}
-
-function getCurrencySymbol(currencyCode) {
-    return CURRENCY_SYMBOLS[currencyCode] || currencyCode;
-}
-
-function precalculateAllYTD(transactions) {
-    const ytdCache = new Map();
-    const sorted = [...transactions].sort((a, b) => {
-        if (a.userId !== b.userId) return a.userId.localeCompare(b.userId);
-        if (a.date !== b.date) return a.date.localeCompare(b.date);
-        return (a.timestamp || '').localeCompare(b.timestamp || '');
-    });
-
-    const runningTotals = {};
-
-    for (const tx of sorted) {
-        if (!validateTransaction(tx)) continue;
-
-        const year = new Date(tx.date).getFullYear();
-        const key = `${tx.userId}_${year}`;
-
-        if (runningTotals[key] === undefined) {
-            runningTotals[key] = 0;
-        }
-
-        runningTotals[key] += tx.convertedGEL;
-        ytdCache.set(tx.id, runningTotals[key]);
-    }
-
-    return ytdCache;
-}
-
-function calculateYTDForTransaction(transaction, allTransactions) {
-    if (!validateTransaction(transaction)) return 0;
-
-    const year = new Date(transaction.date).getFullYear();
-    const ytdTransactions = allTransactions.filter(t => {
-        if (!validateTransaction(t)) return false;
-        const tYear = new Date(t.date).getFullYear();
-        return t.userId === transaction.userId &&
-            tYear === year &&
-            t.date <= transaction.date;
-    });
-
-    ytdTransactions.sort((a, b) => {
-        const dateCompare = a.date.localeCompare(b.date);
-        if (dateCompare !== 0) return dateCompare;
-        return (a.timestamp || '').localeCompare(b.timestamp || '');
-    });
-
-    let runningTotal = 0;
-    for (const t of ytdTransactions) {
-        runningTotal += t.convertedGEL;
-        if (t.id === transaction.id || (t.date === transaction.date && t.timestamp === transaction.timestamp)) {
-            return runningTotal;
-        }
-    }
-
-    return runningTotal;
-}
 
 function loadTransactions() {
     const transactions = getFromStorage('transactions', []);
@@ -506,7 +349,6 @@ function restoreCollapsibleStates() {
 
 function clearConversionUI() {
     const resultDiv = document.getElementById('result');
-    const errorMessage = document.getElementById('errorMessage');
     const loadingMessage = document.getElementById('loadingMessage');
 
     if (resultDiv) {
@@ -626,12 +468,7 @@ function findCurrencyInData(data, currencyCode) {
     return selectedCurrency;
 }
 
-function convertToGEL(amount, currency) {
-    if (currency.code === 'GEL') {
-        return amount;
-    }
-    return amount * currency.rate / currency.quantity;
-}
+// convertToGEL is imported from utils.js
 
 function createTransactionFromConversion(currency, amount, convertedGEL, date, userId) {
     return {
@@ -1071,39 +908,7 @@ function exportToCSV() {
 }
 
 // Function to import transactions from CSV
-function validateCSVHeader(header) {
-    const requiredColumns = ['Date', 'Currency Code', 'Converted GEL'];
-    const missingColumns = requiredColumns.filter(col => !header.includes(col));
-
-    if (missingColumns.length > 0) {
-        throw new Error(ERROR_MESSAGES.INVALID_CSV);
-    }
-    return true;
-}
-
-function parseCSVLine(line) {
-    const regex = /("([^"]|"")*"|[^,]+)/g;
-    const values = [];
-    let match;
-
-    while ((match = regex.exec(line)) !== null) {
-        let value = match[0];
-        if (value.startsWith('"') && value.endsWith('"')) {
-            value = value.slice(1, -1).replace(/""/g, '"');
-        }
-        values.push(value);
-    }
-
-    return values;
-}
-
-function validateCSVRow(values) {
-    if (values.length < 12) return false;
-    if (!validateDateString(values[0])) return false;
-    if (!validateCurrencyCode(values[4])) return false;
-    if (isNaN(parseFloat(values[6])) || isNaN(parseFloat(values[9]))) return false;
-    return true;
-}
+// validateCSVHeader, parseCSVLine, validateCSVRow are imported from utils.js
 
 function extractTransactionFromCSVRow(values) {
     const hasYTD = values.length >= 13;
@@ -1210,7 +1015,7 @@ function importFromCSV(file) {
             triggerDataRefresh();
 
             alert(
-                `Import completed!\n` +
+                'Import completed!\n' +
                 `Imported: ${stats.imported}\n` +
                 `Skipped (duplicates): ${stats.skipped}\n` +
                 `New users created: ${stats.usersCreated}`
@@ -1575,3 +1380,21 @@ window.onload = function () {
         });
     }
 };
+
+// Expose functions to global scope for HTML onclick handlers
+window.toggleCollapsible = toggleCollapsible;
+window.toggleUserManagement = toggleUserManagement;
+window.addNewUser = addNewUser;
+window.clearFilters = clearFilters;
+window.exportToCSV = exportToCSV;
+window.loadDemoData = loadDemoData;
+window.clearAllTransactions = clearAllTransactions;
+window.clearRateCache = clearRateCache;
+window.importFromCSV = importFromCSV;
+window.deleteUser = deleteUser;
+window.deleteTransaction = deleteTransaction;
+window.updateTransactionComment = updateTransactionComment;
+window.saveUserFromInputs = saveUserFromInputs;
+window.updateUserField = updateUserField;
+window.deleteAllUsers = deleteAllUsers;
+window.toggleSort = toggleSort;
