@@ -2,7 +2,7 @@
 
 A static web application for Georgian small business owners to track foreign currency income and convert it to Georgian Lari (GEL) using official National Bank of Georgia exchange rates for tax declaration purposes.
 
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![License](https://img.shields.io/badge/license-GPLv3-blue.svg)
 
 ![screenshot](./assets/Screenshot_2025-10-05_at_16-33-48_Currency_to_GEL_Converter.png "Screenshot")
 
