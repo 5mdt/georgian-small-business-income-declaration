@@ -24,9 +24,23 @@ import {
 // Storage Utilities
 // ===========================
 
+// Try localStorage first, fallback to sessionStorage if blocked
+function getStorage() {
+    try {
+        localStorage.setItem('__test__', '1');
+        localStorage.removeItem('__test__');
+        return localStorage;
+    } catch (_error) {
+        console.warn('localStorage unavailable, using sessionStorage fallback');
+        return sessionStorage;
+    }
+}
+
+const storage = getStorage();
+
 function getFromStorage(key, defaultValue = null) {
     try {
-        const item = localStorage.getItem(key);
+        const item = storage.getItem(key);
         if (!item) return defaultValue;
         return JSON.parse(item);
     } catch (error) {
@@ -38,7 +52,7 @@ function getFromStorage(key, defaultValue = null) {
 function saveToStorage(key, value) {
     try {
         const serialized = JSON.stringify(value);
-        localStorage.setItem(key, serialized);
+        storage.setItem(key, serialized);
         return true;
     } catch (error) {
         if (error.name === 'QuotaExceededError') {
@@ -52,7 +66,7 @@ function saveToStorage(key, value) {
 
 function removeFromStorage(key) {
     try {
-        localStorage.removeItem(key);
+        storage.removeItem(key);
         return true;
     } catch (error) {
         console.error(`Error removing from storage: ${key}`, error);
@@ -92,6 +106,121 @@ function hideError(elementId) {
     element.textContent = '';
     hideElement(element);
 }
+
+// ===========================
+// Theme Management
+// ===========================
+
+const THEME_STORAGE_KEY = 'themePreference';
+const THEME_OPTIONS = ['system', 'light', 'dark'];
+const THEME_ICONS = {
+    system: '💡',
+    light: '☀️',
+    dark: '🌙'
+};
+const THEME_LABELS = {
+    system: 'Theme',
+    light: 'Light',
+    dark: 'Dark'
+};
+
+function getThemePreference() {
+    return getFromStorage(THEME_STORAGE_KEY, 'system');
+}
+
+function getCurrentEffectiveTheme() {
+    const preference = getThemePreference();
+    if (preference !== 'system') {
+        return preference;
+    }
+    // Check system preference
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        return 'dark';
+    }
+    return 'light';
+}
+
+function updateAriaLabel(theme) {
+    const button = document.getElementById('themeToggle');
+    if (!button) return;
+
+    const effectiveTheme = theme === 'system' ? getCurrentEffectiveTheme() : theme;
+    const nextTheme = THEME_OPTIONS[(THEME_OPTIONS.indexOf(theme) + 1) % THEME_OPTIONS.length];
+
+    button.setAttribute(
+        'aria-label',
+        `Current theme: ${THEME_LABELS[theme]} (${effectiveTheme}). Click to switch to ${THEME_LABELS[nextTheme]}`
+    );
+}
+
+function applyTheme(theme) {
+    const htmlElement = document.documentElement;
+    const themeIcon = document.getElementById('themeIcon');
+    const themeLabel = document.getElementById('themeLabel');
+
+    // Update data-theme attribute
+    if (theme === 'system') {
+        htmlElement.removeAttribute('data-theme');
+    } else {
+        htmlElement.setAttribute('data-theme', theme);
+    }
+
+    // Update button UI
+    if (themeIcon) {
+        themeIcon.textContent = THEME_ICONS[theme];
+    }
+    if (themeLabel) {
+        themeLabel.textContent = THEME_LABELS[theme];
+    }
+
+    // Update accessibility label
+    updateAriaLabel(theme);
+
+    // Save preference
+    saveToStorage(THEME_STORAGE_KEY, theme);
+}
+
+function toggleTheme() {
+    const currentTheme = getThemePreference();
+    const currentIndex = THEME_OPTIONS.indexOf(currentTheme);
+    const nextIndex = (currentIndex + 1) % THEME_OPTIONS.length;
+    const nextTheme = THEME_OPTIONS[nextIndex];
+
+    applyTheme(nextTheme);
+}
+
+function setupSystemThemeListener() {
+    if (!window.matchMedia) return;
+
+    const darkModeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+    // Listen for system theme changes
+    const listener = (_e) => {
+        const currentTheme = getThemePreference();
+        // Only react if user is using system theme
+        if (currentTheme === 'system') {
+            // Re-apply to update aria-label with new effective theme
+            updateAriaLabel('system');
+        }
+    };
+
+    // Modern API
+    if (darkModeQuery.addEventListener) {
+        darkModeQuery.addEventListener('change', listener);
+    } else if (darkModeQuery.addListener) {
+        // Legacy support
+        darkModeQuery.addListener(listener);
+    }
+}
+
+function initTheme() {
+    const savedTheme = getThemePreference();
+    applyTheme(savedTheme);
+    setupSystemThemeListener();
+}
+
+// Initialize theme immediately (before DOM content loads to prevent flash)
+initTheme();
 
 // ===========================
 // User Management
@@ -1382,6 +1511,7 @@ window.onload = function () {
 };
 
 // Expose functions to global scope for HTML onclick handlers
+window.toggleTheme = toggleTheme;
 window.toggleCollapsible = toggleCollapsible;
 window.toggleUserManagement = toggleUserManagement;
 window.addNewUser = addNewUser;
