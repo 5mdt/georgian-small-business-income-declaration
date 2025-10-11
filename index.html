@@ -10,8 +10,14 @@
 <body>
     <!-- App Header -->
     <header class="app-header">
-        <h1>Currency to GEL Converter</h1>
-        <p class="subtitle">I've made this tool to fill tax declaration on rs.ge for myself. You can use it too.</p>
+        <div class="header-content">
+            <h1>Currency to GEL Converter</h1>
+            <p class="subtitle">I've made this tool to fill tax declaration on rs.ge for myself. You can use it too.</p>
+        </div>
+        <button id="themeToggle" class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+            <span id="themeIcon">🌐</span>
+            <span id="themeLabel">System</span>
+        </button>
     </header>
 
     <!-- Main App Container -->
