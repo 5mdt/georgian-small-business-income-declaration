@@ -67,7 +67,7 @@
   --font-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
 }
 
-/* Dark Mode Theme Variables */
+/* Dark Mode (System Preference) */
 @media (prefers-color-scheme: dark) {
   :root {
     --bg-primary: var(--nord-polar-night-1);
@@ -93,6 +93,59 @@
   }
 }
 
+/* Explicit Dark Mode (Manual Override) */
+html[data-theme="dark"] {
+  --bg-primary: var(--nord-polar-night-1);
+  --bg-secondary: var(--nord-polar-night-2);
+  --bg-tertiary: var(--nord-polar-night-3);
+  --bg-card: var(--nord-polar-night-2);
+
+  --text-primary: var(--nord-snow-storm-3);
+  --text-secondary: var(--nord-snow-storm-2);
+  --text-muted: var(--nord-snow-storm-1);
+  --text-inverse: var(--nord-polar-night-1);
+
+  --border-color: var(--nord-polar-night-4);
+  --border-light: var(--nord-polar-night-3);
+
+  --accent-primary: var(--nord-frost-3);
+  --accent-primary-hover: var(--nord-frost-2);
+  --accent-secondary: var(--nord-aurora-orange);
+
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+}
+
+/* Explicit Light Mode (Manual Override) - overrides dark mode media query */
+html[data-theme="light"] {
+  --bg-primary: var(--nord-snow-storm-3);
+  --bg-secondary: var(--nord-snow-storm-2);
+  --bg-tertiary: var(--nord-snow-storm-1);
+  --bg-card: #ffffff;
+
+  --text-primary: var(--nord-polar-night-2);
+  --text-secondary: var(--nord-polar-night-3);
+  --text-muted: var(--nord-polar-night-4);
+  --text-inverse: var(--nord-snow-storm-3);
+
+  --border-color: var(--nord-polar-night-4);
+  --border-light: var(--nord-snow-storm-1);
+
+  --accent-primary: var(--nord-frost-3);
+  --accent-primary-hover: var(--nord-frost-2);
+  --accent-secondary: var(--nord-aurora-orange);
+
+  --success: var(--nord-aurora-green);
+  --warning: var(--nord-aurora-yellow);
+  --error: var(--nord-aurora-red);
+  --info: var(--nord-frost-2);
+
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
 /* ===========================
    Global Styles
    =========================== */
@@ -115,7 +168,26 @@ body {
   color: var(--text-primary);
   line-height: 1.6;
   min-height: 100vh;
-  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Smooth theme transitions (respects prefers-reduced-motion) */
+@media (prefers-reduced-motion: no-preference) {
+  :root {
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  body,
+  .app-header,
+  .card,
+  .btn,
+  .theme-toggle,
+  input,
+  select,
+  textarea,
+  th,
+  td {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+  }
 }
 
 /* ===========================
@@ -127,6 +199,12 @@ body {
   padding: var(--spacing-lg) var(--spacing-md);
   box-shadow: var(--shadow-sm);
   margin-bottom: var(--spacing-lg);
+  position: relative;
+}
+
+.app-header .header-content {
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
 .app-header h1 {
@@ -142,6 +220,42 @@ body {
   color: var(--text-secondary);
   font-size: 0.95rem;
   margin-top: var(--spacing-xs);
+}
+
+.theme-toggle {
+  position: absolute;
+  top: var(--spacing-md);
+  right: var(--spacing-md);
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-size: 0.875rem;
+  font-family: var(--font-family);
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.theme-toggle:hover {
+  background-color: var(--bg-tertiary);
+  transform: translateY(-1px);
+}
+
+.theme-toggle:active {
+  transform: translateY(0);
+}
+
+#themeIcon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+#themeLabel {
+  font-weight: 500;
 }
 
 .app-container {
@@ -645,6 +759,24 @@ tfoot td {
 
   .app-header h1 {
     font-size: 1.25rem;
+  }
+
+  .theme-toggle {
+    position: absolute;
+    top: var(--spacing-sm);
+    right: var(--spacing-sm);
+    font-size: 0.8125rem;
+    padding: 6px 8px;
+    min-width: auto;
+  }
+
+  #themeIcon {
+    font-size: 1.125rem;
+  }
+
+  /* Hide label text on mobile, show icon only */
+  #themeLabel {
+    display: none;
   }
 
   .app-container {
