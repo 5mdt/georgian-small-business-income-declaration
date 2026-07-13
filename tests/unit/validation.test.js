@@ -34,6 +34,32 @@ describe('Date Validation', () => {
         expect(validateDateString(`${MIN_YEAR}-01-01`)).toBe(true);
         expect(validateDateString('2100-12-31')).toBe(true);
     });
+
+    it('should reject calendar dates that do not exist (rollover)', () => {
+        // JS Date rolls these over (Feb 30 -> Mar 2) instead of rejecting them
+        expect(validateDateString('2025-02-30')).toBe(false);
+        expect(validateDateString('2025-04-31')).toBe(false);
+        expect(validateDateString('2025-13-15')).toBe(false);
+        expect(validateDateString('2025-00-15')).toBe(false);
+        expect(validateDateString('2025-01-00')).toBe(false);
+    });
+
+    it('should accept Feb 29 on leap years and reject it otherwise', () => {
+        expect(validateDateString('2024-02-29')).toBe(true); // leap year
+        expect(validateDateString('2025-02-29')).toBe(false); // not a leap year
+    });
+
+    it('should reject non-padded or malformed date strings', () => {
+        expect(validateDateString('2025-1-5')).toBe(false);
+        expect(validateDateString('2025/01/15')).toBe(false);
+        expect(validateDateString('01-15-2025')).toBe(false);
+        expect(validateDateString('2025-01-15T00:00:00')).toBe(false);
+    });
+
+    it('should reject non-string date inputs', () => {
+        expect(validateDateString(20250115)).toBe(false);
+        expect(validateDateString({})).toBe(false);
+    });
 });
 
 describe('Amount Validation', () => {

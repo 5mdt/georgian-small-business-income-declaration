@@ -88,6 +88,25 @@ describe('CSV Line Parsing', () => {
 
         expect(values[2]).toBe('Payment for "Contract #123", due on 01/15');
     });
+
+    it('should preserve empty unquoted fields instead of dropping them', () => {
+        // Regression test: a naive "match non-empty runs" parser silently drops
+        // empty unquoted fields, shifting every later column's index.
+        expect(parseCSVLine('a,,b')).toEqual(['a', '', 'b']);
+        expect(parseCSVLine(',a,b')).toEqual(['', 'a', 'b']);
+        expect(parseCSVLine('a,b,')).toEqual(['a', 'b', '']);
+        expect(parseCSVLine(',,')).toEqual(['', '', '']);
+    });
+
+    it('should preserve empty fields at real column positions in a full row', () => {
+        // Comment (index 10) left empty and unquoted must not shift Timestamp (index 11)
+        const line = '2025-01-15,user1,John Doe,123456,USD,US Dollar,100,2.875,1,287.5,,1000';
+        const values = parseCSVLine(line);
+
+        expect(values).toHaveLength(12);
+        expect(values[10]).toBe('');
+        expect(values[11]).toBe('1000');
+    });
 });
 
 describe('CSV Row Validation', () => {

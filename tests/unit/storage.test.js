@@ -1,166 +1,124 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { getStorage, getFromStorage, saveToStorage, removeFromStorage } from '../../src/storage.js';
 
-describe('Storage Utilities', () => {
-    let mockLocalStorage;
-    let mockSessionStorage;
+// Unlike the code it replaces, this file exercises the *real* storage
+// module (src/storage.js) instead of re-implementing the fallback logic
+// inline in the test - a test that only asserts a hand-rolled mock behaves
+// like a hand-rolled mock provides no real coverage.
 
+describe('getStorage', () => {
+    it('returns localStorage when it is writable', () => {
+        expect(getStorage()).toBe(global.localStorage);
+    });
+
+    it('falls back to sessionStorage when localStorage throws', () => {
+        const originalSetItem = global.localStorage.setItem;
+        global.localStorage.setItem = vi.fn(() => {
+            throw new Error('blocked');
+        });
+
+        expect(getStorage()).toBe(global.sessionStorage);
+
+        global.localStorage.setItem = originalSetItem;
+    });
+});
+
+describe('getFromStorage', () => {
     beforeEach(() => {
-        // Create mock storage objects
-        mockLocalStorage = (() => {
-            let store = {};
-            return {
-                getItem: vi.fn((key) => store[key] || null),
-                setItem: vi.fn((key, value) => { store[key] = value.toString(); }),
-                removeItem: vi.fn((key) => { delete store[key]; }),
-                clear: vi.fn(() => { store = {}; })
-            };
-        })();
-
-        mockSessionStorage = (() => {
-            let store = {};
-            return {
-                getItem: vi.fn((key) => store[key] || null),
-                setItem: vi.fn((key, value) => { store[key] = value.toString(); }),
-                removeItem: vi.fn((key) => { delete store[key]; }),
-                clear: vi.fn(() => { store = {}; })
-            };
-        })();
-
-        // Mock global storage objects
-        global.localStorage = mockLocalStorage;
-        global.sessionStorage = mockSessionStorage;
+        global.localStorage.clear();
     });
 
-    afterEach(() => {
-        vi.restoreAllMocks();
+    it('returns the parsed value for an existing key', () => {
+        global.localStorage.setItem('users', JSON.stringify([{ id: 'u1' }]));
+        expect(getFromStorage('users')).toEqual([{ id: 'u1' }]);
     });
 
-    describe('Storage Fallback Logic', () => {
-        it('should use localStorage when available', () => {
-            const storage = global.localStorage;
-            storage.setItem('test', 'value');
-            expect(storage.getItem('test')).toBe('value');
-            expect(mockLocalStorage.setItem).toHaveBeenCalledWith('test', 'value');
-        });
+    it('returns the default value when the key is missing', () => {
+        expect(getFromStorage('missing', 'fallback')).toBe('fallback');
+        expect(getFromStorage('missing')).toBeNull();
+    });
 
-        it('should fallback to sessionStorage when localStorage throws', () => {
-            // Simulate localStorage throwing
-            mockLocalStorage.setItem.mockImplementation(() => {
-                throw new Error('QuotaExceededError');
-            });
+    it('returns the default value and logs when stored JSON is corrupted', () => {
+        global.localStorage.setItem('broken', 'not valid json{');
+        expect(getFromStorage('broken', [])).toEqual([]);
+        expect(console.error).toHaveBeenCalled();
+    });
 
-            // This would be the actual implementation behavior
-            let storage = mockLocalStorage;
-            try {
-                storage.setItem('__test__', '1');
-            } catch {
-                storage = mockSessionStorage;
-            }
+    it('reads from an explicitly passed storage backend', () => {
+        const fakeStorage = { getItem: vi.fn(() => JSON.stringify('from-fake')) };
+        expect(getFromStorage('anything', null, fakeStorage)).toBe('from-fake');
+    });
+});
 
-            storage.setItem('test', 'value');
-            expect(mockSessionStorage.setItem).toHaveBeenCalledWith('test', 'value');
-        });
+describe('saveToStorage', () => {
+    beforeEach(() => {
+        global.localStorage.clear();
+    });
 
-        it('should detect localStorage availability with test write', () => {
-            let isAvailable = true;
-            try {
-                mockLocalStorage.setItem('__test__', '1');
-                mockLocalStorage.removeItem('__test__');
-            } catch {
-                isAvailable = false;
-            }
+    it('serializes and stores the value, returning true on success', () => {
+        const result = saveToStorage('users', [{ id: 'u1', name: 'John' }]);
+        expect(result).toBe(true);
+        expect(JSON.parse(global.localStorage.getItem('users'))).toEqual([{ id: 'u1', name: 'John' }]);
+    });
 
-            expect(isAvailable).toBe(true);
-            expect(mockLocalStorage.setItem).toHaveBeenCalledWith('__test__', '1');
-            expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('__test__');
-        });
+    it('alerts and returns false on QuotaExceededError', () => {
+        const alertSpy = vi.fn();
+        global.alert = alertSpy;
 
-        it('should handle QuotaExceededError gracefully', () => {
-            mockLocalStorage.setItem.mockImplementation(() => {
-                const err = new Error('QuotaExceededError');
+        const fakeStorage = {
+            setItem: vi.fn(() => {
+                const err = new Error('quota exceeded');
                 err.name = 'QuotaExceededError';
                 throw err;
-            });
+            })
+        };
 
-            expect(() => {
-                try {
-                    mockLocalStorage.setItem('test', 'value');
-                } catch (err) {
-                    if (err.name === 'QuotaExceededError') {
-                        // Should handle gracefully
-                        expect(err.name).toBe('QuotaExceededError');
-                    }
-                    throw err;
-                }
-            }).toThrow('QuotaExceededError');
-        });
+        const result = saveToStorage('big', 'x'.repeat(1000), fakeStorage);
+
+        expect(result).toBe(false);
+        expect(alertSpy).toHaveBeenCalledTimes(1);
     });
 
-    describe('Theme Preference Storage', () => {
-        it('should store theme preference', () => {
-            const themeKey = 'themePreference';
-            const themeValue = JSON.stringify('dark');
+    it('logs and returns false on other storage errors without alerting', () => {
+        const alertSpy = vi.fn();
+        global.alert = alertSpy;
 
-            mockLocalStorage.setItem(themeKey, themeValue);
-            const result = mockLocalStorage.getItem(themeKey);
+        const fakeStorage = {
+            setItem: vi.fn(() => {
+                throw new Error('some other error');
+            })
+        };
 
-            expect(result).toBe(themeValue);
-            expect(mockLocalStorage.setItem).toHaveBeenCalledWith(themeKey, themeValue);
-        });
+        const result = saveToStorage('key', 'value', fakeStorage);
 
-        it('should retrieve stored theme preference', () => {
-            const themeKey = 'themePreference';
-            mockLocalStorage.setItem(themeKey, JSON.stringify('light'));
+        expect(result).toBe(false);
+        expect(alertSpy).not.toHaveBeenCalled();
+        expect(console.error).toHaveBeenCalled();
+    });
+});
 
-            const result = JSON.parse(mockLocalStorage.getItem(themeKey));
-
-            expect(result).toBe('light');
-        });
-
-        it('should return default value when theme not stored', () => {
-            const result = mockLocalStorage.getItem('themePreference');
-            const defaultTheme = result || 'system';
-
-            expect(defaultTheme).toBe('system');
-        });
-
-        it('should support all theme values', () => {
-            const themes = ['system', 'light', 'dark'];
-
-            themes.forEach(theme => {
-                mockLocalStorage.setItem('themePreference', JSON.stringify(theme));
-                const result = JSON.parse(mockLocalStorage.getItem('themePreference'));
-                expect(result).toBe(theme);
-            });
-        });
-
-        it('should overwrite existing theme preference', () => {
-            mockLocalStorage.setItem('themePreference', JSON.stringify('light'));
-            expect(JSON.parse(mockLocalStorage.getItem('themePreference'))).toBe('light');
-
-            mockLocalStorage.setItem('themePreference', JSON.stringify('dark'));
-            expect(JSON.parse(mockLocalStorage.getItem('themePreference'))).toBe('dark');
-        });
+describe('removeFromStorage', () => {
+    beforeEach(() => {
+        global.localStorage.clear();
     });
 
-    describe('Storage Error Handling', () => {
-        it('should handle JSON parse errors', () => {
-            mockLocalStorage.setItem('invalid', 'not valid json');
+    it('removes an existing key and returns true', () => {
+        global.localStorage.setItem('temp', '"value"');
+        expect(removeFromStorage('temp')).toBe(true);
+        expect(global.localStorage.getItem('temp')).toBeNull();
+    });
 
-            expect(() => {
-                JSON.parse(mockLocalStorage.getItem('invalid'));
-            }).toThrow();
-        });
+    it('returns true even if the key did not exist', () => {
+        expect(removeFromStorage('nonexistent')).toBe(true);
+    });
 
-        it('should handle missing keys gracefully', () => {
-            const result = mockLocalStorage.getItem('nonexistent');
-            expect(result).toBeNull();
-        });
-
-        it('should handle removeItem on missing keys', () => {
-            expect(() => {
-                mockLocalStorage.removeItem('nonexistent');
-            }).not.toThrow();
-        });
+    it('returns false and logs if the backend throws', () => {
+        const fakeStorage = {
+            removeItem: vi.fn(() => {
+                throw new Error('remove failed');
+            })
+        };
+        expect(removeFromStorage('key', fakeStorage)).toBe(false);
+        expect(console.error).toHaveBeenCalled();
     });
 });

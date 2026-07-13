@@ -1,10 +1,7 @@
 // Import utility functions
 import {
     ERROR_MESSAGES,
-    API_TIMEOUT,
     FILTER_DEBOUNCE_MS,
-    validateUser,
-    validateTransaction,
     formatCurrency,
     getCurrencySymbol,
     generateUserId,
@@ -12,100 +9,43 @@ import {
     convertToGEL,
     precalculateAllYTD,
     calculateYTDForTransaction,
-    validateCSVHeader,
-    parseCSVLine,
-    validateCSVRow,
     buildUserLookupMap,
     createDefaultUser,
     debounce
 } from './src/utils.js';
 
-// ===========================
-// Storage Utilities
-// ===========================
-
-// Try localStorage first, fallback to sessionStorage if blocked
-function getStorage() {
-    try {
-        localStorage.setItem('__test__', '1');
-        localStorage.removeItem('__test__');
-        return localStorage;
-    } catch (_error) {
-        console.warn('localStorage unavailable, using sessionStorage fallback');
-        return sessionStorage;
-    }
-}
-
-const storage = getStorage();
-
-function getFromStorage(key, defaultValue = null) {
-    try {
-        const item = storage.getItem(key);
-        if (!item) return defaultValue;
-        return JSON.parse(item);
-    } catch (error) {
-        console.error(`Error reading from storage: ${key}`, error);
-        return defaultValue;
-    }
-}
-
-function saveToStorage(key, value) {
-    try {
-        const serialized = JSON.stringify(value);
-        storage.setItem(key, serialized);
-        return true;
-    } catch (error) {
-        if (error.name === 'QuotaExceededError') {
-            alert(ERROR_MESSAGES.QUOTA_EXCEEDED);
-        } else {
-            console.error(`Error saving to storage: ${key}`, error);
-        }
-        return false;
-    }
-}
-
-function removeFromStorage(key) {
-    try {
-        storage.removeItem(key);
-        return true;
-    } catch (error) {
-        console.error(`Error removing from storage: ${key}`, error);
-        return false;
-    }
-}
-
-// ===========================
-// DOM Utilities
-// ===========================
-
-function sanitizeInput(text) {
-    if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-function showElement(element) {
-    if (element) element.classList.remove('hidden');
-}
-
-function hideElement(element) {
-    if (element) element.classList.add('hidden');
-}
-
-function showError(elementId, message) {
-    const element = document.getElementById(elementId);
-    if (!element) return;
-    element.textContent = message;
-    showElement(element);
-}
-
-function hideError(elementId) {
-    const element = document.getElementById(elementId);
-    if (!element) return;
-    element.textContent = '';
-    hideElement(element);
-}
+import { getFromStorage, saveToStorage, removeFromStorage } from './src/storage.js';
+import { sanitizeInput, showElement, hideElement, showError, hideError } from './src/dom.js';
+import {
+    loadUsers,
+    canDeleteUser,
+    removeUserFromStorage,
+    getUserById,
+    updateUserInStorage
+} from './src/users.js';
+import {
+    loadTransactions,
+    addTransactionToStorage,
+    removeTransactionFromStorage,
+    updateTransactionCommentInStorage,
+    removeUserTransactions
+} from './src/transactions.js';
+import {
+    findCurrencyInData,
+    getCurrencyRatesFromCache,
+    fetchCurrencyRates
+} from './src/currency.js';
+import {
+    createDefaultFilterState,
+    applyFilters,
+    sortTransactions,
+    computeNextSortState
+} from './src/filters.js';
+import {
+    buildImportResult,
+    buildExportCSVContent,
+    buildExportFilename
+} from './src/csv.js';
 
 // ===========================
 // Theme Management
@@ -225,43 +165,8 @@ initTheme();
 // ===========================
 // User Management
 // ===========================
-
-function loadUsers() {
-    const users = getFromStorage('users');
-
-    if (!users || !Array.isArray(users) || users.length === 0) {
-        const defaultUser = createDefaultUser();
-        saveToStorage('users', [defaultUser]);
-        return [defaultUser];
-    }
-
-    const validUsers = users.filter(validateUser);
-    if (validUsers.length === 0) {
-        const defaultUser = createDefaultUser();
-        saveToStorage('users', [defaultUser]);
-        return [defaultUser];
-    }
-
-    return validUsers;
-}
-
-function updateUserInStorage(userData) {
-    if (!validateUser(userData)) {
-        console.error('Invalid user data', userData);
-        return false;
-    }
-
-    const users = loadUsers();
-    const existingIndex = users.findIndex(u => u.id === userData.id);
-
-    if (existingIndex >= 0) {
-        users[existingIndex] = userData;
-    } else {
-        users.push(userData);
-    }
-
-    return saveToStorage('users', users);
-}
+// loadUsers, canDeleteUser, removeUserFromStorage, getUserById, updateUserInStorage
+// are imported from src/users.js
 
 function triggerUserUIRefresh() {
     renderUserList();
@@ -274,40 +179,6 @@ function saveUser(userData) {
         triggerUserUIRefresh();
     }
     return success;
-}
-
-function canDeleteUser(userId, users, transactions) {
-    if (userId === 'user') {
-        return { allowed: false, reason: 'Cannot delete the default user. Please create another user first.' };
-    }
-
-    if (users.length <= 1) {
-        return { allowed: false, reason: 'Cannot delete the last user.' };
-    }
-
-    const userTransactions = transactions.filter(t => t.userId === userId);
-    if (userTransactions.length > 0) {
-        const confirmed = confirm(
-            `This user has ${userTransactions.length} transaction(s). Delete user and all associated transactions?`
-        );
-        if (!confirmed) {
-            return { allowed: false, reason: 'User cancelled operation.' };
-        }
-    }
-
-    return { allowed: true };
-}
-
-function removeUserFromStorage(userId) {
-    const users = loadUsers();
-    const filteredUsers = users.filter(u => u.id !== userId);
-    return saveToStorage('users', filteredUsers);
-}
-
-function removeUserTransactions(userId) {
-    const transactions = loadTransactions();
-    const filteredTransactions = transactions.filter(t => t.userId !== userId);
-    return saveToStorage('transactions', filteredTransactions);
 }
 
 function triggerDataRefresh() {
@@ -339,45 +210,27 @@ function deleteUser(userId) {
     return false;
 }
 
-// Function to get user by ID
-function getUserById(userId) {
-    const users = loadUsers();
-    return users.find(u => u.id === userId);
-}
-
 // ===========================
 // Transaction Management
 // ===========================
-
-function loadTransactions() {
-    const transactions = getFromStorage('transactions', []);
-    if (!Array.isArray(transactions)) return [];
-    return transactions.filter(validateTransaction);
-}
-
-function addTransactionToStorage(transactionData) {
-    if (!validateTransaction(transactionData)) {
-        console.error('Invalid transaction data', transactionData);
-        return false;
-    }
-
-    const transactions = loadTransactions();
-    transactions.push(transactionData);
-    return saveToStorage('transactions', transactions);
-}
+// loadTransactions, addTransactionToStorage, removeTransactionFromStorage,
+// updateTransactionCommentInStorage, removeUserTransactions are imported
+// from src/transactions.js
 
 function saveTransaction(transactionData) {
     const success = addTransactionToStorage(transactionData);
     if (success) {
         renderTransactionList();
+        // A transaction may introduce a currency not yet in the filter
+        // dropdown (e.g. the first EUR transaction) - refresh it so
+        // "filter by currency" immediately works for the new entry.
+        populateCurrencyFilter();
     }
     return success;
 }
 
 function deleteTransaction(id) {
-    const transactions = loadTransactions();
-    const filtered = transactions.filter(t => t.id !== id);
-    const success = saveToStorage('transactions', filtered);
+    const success = removeTransactionFromStorage(id);
     if (success) {
         renderTransactionList();
     }
@@ -385,14 +238,7 @@ function deleteTransaction(id) {
 }
 
 function updateTransactionComment(id, newComment) {
-    const transactions = loadTransactions();
-    const transaction = transactions.find(t => t.id === id);
-
-    if (!transaction) return false;
-
-    transaction.comment = sanitizeInput(newComment);
-    const success = saveToStorage('transactions', transactions);
-
+    const success = updateTransactionCommentInStorage(id, newComment);
     if (success) {
         renderTransactionList();
     }
@@ -504,29 +350,7 @@ function validateConversionInputs(date, currencyCode, amount) {
     return true;
 }
 
-function getCurrencyRatesFromCache(date) {
-    return getFromStorage(`currencyRates_${date}`);
-}
-
-function saveCurrencyRatesToCache(date, data) {
-    saveToStorage(`currencyRates_${date}`, data);
-}
-
-function fetchCurrencyRates(date) {
-    const apiUrl = `https://nbg.gov.ge/gw/api/ct/monetarypolicy/currencies/en/json/?date=${date}`;
-
-    return fetch(apiUrl, { timeout: API_TIMEOUT })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(ERROR_MESSAGES.API_ERROR);
-            }
-            return response.json();
-        })
-        .then(data => {
-            saveCurrencyRatesToCache(date, data);
-            return data;
-        });
-}
+// getCurrencyRatesFromCache and fetchCurrencyRates are imported from src/currency.js
 
 function handleConversionError(error) {
     const loadingMessage = document.getElementById('loadingMessage');
@@ -564,40 +388,8 @@ document.getElementById('fetchButton').addEventListener('click', function () {
         .catch(handleConversionError);
 });
 
-// Function to handle currency data
-function createGELCurrencyObject() {
-    return {
-        code: 'GEL',
-        name: 'Georgian Lari',
-        rate: 1,
-        quantity: 1,
-        rateFormated: '1.0000'
-    };
-}
-
-function validateCurrencyResponse(data) {
-    if (!Array.isArray(data) || data.length === 0 || !data[0].currencies) {
-        throw new Error(ERROR_MESSAGES.NO_CURRENCY_DATA);
-    }
-}
-
-function findCurrencyInData(data, currencyCode) {
-    if (currencyCode === 'GEL') {
-        return createGELCurrencyObject();
-    }
-
-    validateCurrencyResponse(data);
-    const currencies = data[0].currencies;
-    const selectedCurrency = currencies.find(c => c.code === currencyCode);
-
-    if (!selectedCurrency) {
-        throw new Error(ERROR_MESSAGES.CURRENCY_NOT_FOUND);
-    }
-
-    return selectedCurrency;
-}
-
-// convertToGEL is imported from utils.js
+// createGELCurrencyObject, validateCurrencyResponse, findCurrencyInData,
+// convertToGEL are imported from src/currency.js / src/utils.js
 
 function createTransactionFromConversion(currency, amount, convertedGEL, date, userId) {
     return {
@@ -691,25 +483,13 @@ function loadCurrencies(isInitialLoad = false) {
     // Show loading
     currencySelect.innerHTML = '<option value="">Loading...</option>';
 
-    // Check if data is cached in localStorage
-    const cachedData = localStorage.getItem(`currencyRates_${date}`);
+    // Check the shared NBG rate cache (src/currency.js) before fetching
+    const cachedData = getCurrencyRatesFromCache(date);
     if (cachedData) {
-        // Use cached data
-        populateCurrencySelect(JSON.parse(cachedData), currencySelect, isInitialLoad, savedCurrency);
+        populateCurrencySelect(cachedData, currencySelect, isInitialLoad, savedCurrency);
     } else {
-        // Fetch data
-        const apiUrl = `https://nbg.gov.ge/gw/api/ct/monetarypolicy/currencies/en/json/?date=${date}`;
-        fetch(apiUrl)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`API error: ${response.statusText}`);
-                }
-                return response.json();
-            })
+        fetchCurrencyRates(date)
             .then(data => {
-                // Cache data in localStorage
-                localStorage.setItem(`currencyRates_${date}`, JSON.stringify(data));
-
                 populateCurrencySelect(data, currencySelect, isInitialLoad, savedCurrency);
             })
             .catch(error => {
@@ -761,95 +541,21 @@ function populateCurrencySelect(data, currencySelect, isInitialLoad = false, sav
 // Filter and Sort State
 // ===========================
 
-let filterState = {
-    userId: 'all',
-    currencyCode: 'all',
-    dateFrom: '',
-    dateTo: '',
-    sortColumn: 'date',
-    sortDirection: 'desc'
-};
+let filterState = createDefaultFilterState();
 
-// Function to apply filters to transactions
-function applyFilters(transactions) {
-    let filtered = [...transactions];
-
-    // Filter by user
-    if (filterState.userId !== 'all') {
-        filtered = filtered.filter(t => t.userId === filterState.userId);
-    }
-
-    // Filter by currency
-    if (filterState.currencyCode !== 'all') {
-        filtered = filtered.filter(t => t.currencyCode === filterState.currencyCode);
-    }
-
-    // Filter by date range
-    if (filterState.dateFrom) {
-        filtered = filtered.filter(t => t.date >= filterState.dateFrom);
-    }
-    if (filterState.dateTo) {
-        filtered = filtered.filter(t => t.date <= filterState.dateTo);
-    }
-
-    return filtered;
-}
-
-const SORT_STRATEGIES = {
-    date: (a, b) => new Date(a.date) - new Date(b.date),
-    user: (a, b, userMap) => {
-        const userA = userMap.get(a.userId);
-        const userB = userMap.get(b.userId);
-        const nameA = userA ? userA.name : '';
-        const nameB = userB ? userB.name : '';
-        return nameA.localeCompare(nameB);
-    },
-    currency: (a, b) => a.currencyCode.localeCompare(b.currencyCode),
-    amount: (a, b) => a.amount - b.amount,
-    gel: (a, b) => a.convertedGEL - b.convertedGEL,
-    ytd: (a, b, userMap, ytdCache) => {
-        const ytdA = ytdCache.get(a.id) || 0;
-        const ytdB = ytdCache.get(b.id) || 0;
-        return ytdA - ytdB;
-    }
-};
-
-function sortTransactions(transactions, userMap, ytdCache) {
-    const sortStrategy = SORT_STRATEGIES[filterState.sortColumn];
-    if (!sortStrategy) return [...transactions];
-
-    const direction = filterState.sortDirection === 'asc' ? 1 : -1;
-    const sorted = [...transactions];
-
-    sorted.sort((a, b) => {
-        const result = sortStrategy(a, b, userMap, ytdCache);
-        return result * direction;
-    });
-
-    return sorted;
-}
+// applyFilters, SORT_STRATEGIES, sortTransactions are imported from src/filters.js
 
 // Function to toggle sort
 function toggleSort(column) {
-    if (filterState.sortColumn === column) {
-        filterState.sortDirection = filterState.sortDirection === 'asc' ? 'desc' : 'asc';
-    } else {
-        filterState.sortColumn = column;
-        filterState.sortDirection = 'desc';
-    }
+    const next = computeNextSortState(filterState, column);
+    filterState.sortColumn = next.sortColumn;
+    filterState.sortDirection = next.sortDirection;
     renderTransactionList();
 }
 
 // Function to clear all filters
 function clearFilters() {
-    filterState = {
-        userId: 'all',
-        currencyCode: 'all',
-        dateFrom: '',
-        dateTo: '',
-        sortColumn: 'date',
-        sortDirection: 'desc'
-    };
+    filterState = createDefaultFilterState();
 
     // Reset filter UI
     const userFilter = document.getElementById('filterUser');
@@ -966,8 +672,8 @@ function renderTransactionList() {
     const userMap = buildUserLookupMap(users);
     const ytdCache = precalculateAllYTD(allTransactions);
 
-    let transactions = applyFilters(allTransactions);
-    transactions = sortTransactions(transactions, userMap, ytdCache);
+    let transactions = applyFilters(allTransactions, filterState);
+    transactions = sortTransactions(transactions, userMap, ytdCache, filterState);
 
     const filterStatus = `Showing ${transactions.length} of ${allTransactions.length} transactions`;
     const tableHTML = buildTransactionTable(transactions, userMap, ytdCache, filterStatus);
@@ -988,45 +694,32 @@ function exportToCSV() {
         return;
     }
 
+    const users = loadUsers();
+    const userMap = buildUserLookupMap(users);
+    const ytdCache = precalculateAllYTD(allTransactions);
+
     // Apply current filters
-    let transactions = applyFilters(allTransactions);
-    transactions = sortTransactions(transactions);
+    let transactions = applyFilters(allTransactions, filterState);
+    transactions = sortTransactions(transactions, userMap, ytdCache, filterState);
 
     if (transactions.length === 0) {
         alert('No transactions to export with current filters.');
         return;
     }
 
-    // CSV header
-    let csvContent = 'Date,User ID,User Name,Taxpayer ID,Currency Code,Currency Name,Amount,Exchange Rate,Quantity,Converted GEL,YTD Income,Comment,Timestamp\n';
-
-    // Add rows
-    transactions.forEach(t => {
-        const user = getUserById(t.userId);
-        const userName = user ? user.name : '';
-        const taxpayerId = user ? user.taxpayerId : '';
-        const escapedUserName = `"${userName.replace(/"/g, '""')}"`;
-        const escapedCurrencyName = `"${t.currencyName.replace(/"/g, '""')}"`;
-        const escapedComment = `"${(t.comment || '').replace(/"/g, '""')}"`;
-        const ytdIncome = calculateYTDForTransaction(t, allTransactions);
-
-        csvContent += `${t.date},${t.userId},${escapedUserName},${taxpayerId},${t.currencyCode},${escapedCurrencyName},${t.amount},${t.rate},${t.quantity},${t.convertedGEL},${ytdIncome},${escapedComment},${t.timestamp}\n`;
-    });
+    const csvContent = buildExportCSVContent(
+        transactions,
+        (t) => calculateYTDForTransaction(t, allTransactions),
+        getUserById
+    );
 
     // Create blob and download
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
 
-    // Filename based on filter
-    let filename;
-    if (filterState.userId !== 'all') {
-        const user = getUserById(filterState.userId);
-        const userName = user ? user.name.replace(/[^a-z0-9]/gi, '_') : 'user';
-        filename = `gel-transactions-${userName}-${new Date().toISOString().split('T')[0]}.csv`;
-    } else {
-        filename = `gel-transactions-all-${new Date().toISOString().split('T')[0]}.csv`;
-    }
+    const todayISODate = new Date().toISOString().split('T')[0];
+    const filename = buildExportFilename(filterState, getUserById, todayISODate);
 
     link.setAttribute('href', url);
     link.setAttribute('download', filename);
@@ -1037,93 +730,16 @@ function exportToCSV() {
 }
 
 // Function to import transactions from CSV
-// validateCSVHeader, parseCSVLine, validateCSVRow are imported from utils.js
-
-function extractTransactionFromCSVRow(values) {
-    const hasYTD = values.length >= 13;
-
-    return {
-        id: generateTransactionId(),
-        userId: values[1],
-        date: values[0],
-        currencyCode: values[4],
-        currencyName: values[5],
-        amount: parseFloat(values[6]),
-        rate: parseFloat(values[7]),
-        quantity: parseFloat(values[8]),
-        convertedGEL: parseFloat(values[9]),
-        comment: sanitizeInput(hasYTD ? values[11] : values[10]),
-        timestamp: hasYTD ? values[12] : values[11]
-    };
-}
-
-function ensureUserExistsFromCSV(userId, userName, taxpayerId, users, userIds) {
-    if (userIds.has(userId)) {
-        return { created: false };
-    }
-
-    const newUser = {
-        id: userId,
-        name: sanitizeInput(userName),
-        taxpayerId: sanitizeInput(taxpayerId)
-    };
-
-    if (validateUser(newUser)) {
-        users.push(newUser);
-        userIds.add(userId);
-        return { created: true, user: newUser };
-    }
-
-    return { created: false, error: 'Invalid user data' };
-}
+// buildImportResult (parsing/validation/dedup/user-creation) is imported from src/csv.js
 
 function processCSVContent(content) {
-    const lines = content.split('\n');
-    const header = lines[0].trim();
-
-    validateCSVHeader(header);
-
     const existingTransactions = loadTransactions();
-    const existingTimestamps = new Set(existingTransactions.map(t => t.timestamp));
-    const users = loadUsers();
-    const userIds = new Set(users.map(u => u.id));
+    const existingUsers = loadUsers();
 
-    const stats = { imported: 0, skipped: 0, usersCreated: 0 };
-
-    for (let i = 1; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (!line) continue;
-
-        const values = parseCSVLine(line);
-        if (!validateCSVRow(values)) continue;
-
-        const hasYTD = values.length >= 13;
-        const timestamp = hasYTD ? values[12] : values[11];
-
-        if (existingTimestamps.has(timestamp)) {
-            stats.skipped++;
-            continue;
-        }
-
-        const userResult = ensureUserExistsFromCSV(
-            values[1],
-            values[2],
-            values[3],
-            users,
-            userIds
-        );
-
-        if (userResult.created) {
-            stats.usersCreated++;
-        }
-
-        const transaction = extractTransactionFromCSVRow(values);
-        existingTransactions.push(transaction);
-        stats.imported++;
-    }
+    const { users, transactions, stats } = buildImportResult(content, existingTransactions, existingUsers);
 
     saveToStorage('users', users);
-    saveToStorage('transactions', existingTransactions);
+    saveToStorage('transactions', transactions);
 
     return stats;
 }

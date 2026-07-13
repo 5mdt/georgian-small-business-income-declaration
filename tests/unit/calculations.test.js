@@ -32,6 +32,22 @@ describe('Currency Conversion', () => {
         expect(convertToGEL(0.01, currency)).toBeCloseTo(0.02875, 4);
         expect(convertToGEL(1, currency)).toBe(2.875);
     });
+
+    it('should return 0 instead of Infinity/NaN for a zero or negative quantity', () => {
+        expect(convertToGEL(100, { code: 'JPY', rate: 2.5, quantity: 0 })).toBe(0);
+        expect(convertToGEL(100, { code: 'JPY', rate: 2.5, quantity: -100 })).toBe(0);
+    });
+
+    it('should return 0 for non-finite rate or quantity', () => {
+        expect(convertToGEL(100, { code: 'USD', rate: NaN, quantity: 1 })).toBe(0);
+        expect(convertToGEL(100, { code: 'USD', rate: Infinity, quantity: 1 })).toBe(0);
+        expect(convertToGEL(100, { code: 'USD', rate: 2.875, quantity: NaN })).toBe(0);
+    });
+
+    it('should return 0 for missing/null currency', () => {
+        expect(convertToGEL(100, null)).toBe(0);
+        expect(convertToGEL(100, undefined)).toBe(0);
+    });
 });
 
 describe('YTD Calculation - Single Transaction', () => {
@@ -145,6 +161,63 @@ describe('YTD Calculation - Single Transaction', () => {
     it('should return 0 for invalid transaction', () => {
         const invalidTx = { id: 'invalid' };
         expect(calculateYTDForTransaction(invalidTx, transactions)).toBe(0);
+    });
+
+    it('should order transactions with missing timestamps before ones that have them', () => {
+        const noTimestampTx = {
+            id: 'tx-no-ts',
+            userId: 'user1',
+            date: '2025-01-15',
+            currencyCode: 'EUR',
+            amount: 50,
+            convertedGEL: 155,
+            timestamp: undefined
+        };
+
+        const withTimestampTx = {
+            id: 'tx-with-ts',
+            userId: 'user1',
+            date: '2025-01-15',
+            currencyCode: 'USD',
+            amount: 100,
+            convertedGEL: 287.5,
+            timestamp: '1000'
+        };
+
+        const allTx = [noTimestampTx, withTimestampTx];
+
+        // '' (missing timestamp) sorts before '1000' lexicographically
+        expect(calculateYTDForTransaction(noTimestampTx, allTx)).toBe(155);
+        expect(calculateYTDForTransaction(withTimestampTx, allTx)).toBe(155 + 287.5);
+    });
+
+    it('should break ties by id (not date+timestamp) when two transactions collide', () => {
+        // Regression test: matching by date+timestamp instead of id caused the
+        // loop to stop at whichever colliding transaction it reached first,
+        // returning the wrong (too-low) running total for the other one.
+        const txA = {
+            id: 'tx-a',
+            userId: 'user1',
+            date: '2025-01-15',
+            currencyCode: 'USD',
+            amount: 100,
+            convertedGEL: 100,
+            timestamp: '1000'
+        };
+        const txB = {
+            id: 'tx-b',
+            userId: 'user1',
+            date: '2025-01-15',
+            currencyCode: 'EUR',
+            amount: 50,
+            convertedGEL: 50,
+            timestamp: '1000'
+        };
+
+        const allTx = [txA, txB];
+
+        expect(calculateYTDForTransaction(txA, allTx)).toBe(100);
+        expect(calculateYTDForTransaction(txB, allTx)).toBe(150);
     });
 });
 

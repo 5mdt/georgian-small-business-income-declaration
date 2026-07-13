@@ -39,11 +39,31 @@ export const FILTER_DEBOUNCE_MS = 300;
  * @returns {boolean} True if valid
  */
 export function validateDateString(dateString) {
-    if (!dateString) return false;
+    if (!dateString || typeof dateString !== 'string') return false;
+
+    // Require strict YYYY-MM-DD format (rejects '2025-1-5', trailing garbage, etc.)
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateString);
+    if (!match) return false;
+
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+
+    if (year < MIN_YEAR || year > 2100) return false;
+
     const date = new Date(dateString);
     if (isNaN(date.getTime())) return false;
-    const year = date.getFullYear();
-    if (year < MIN_YEAR || year > 2100) return false;
+
+    // Date's constructor rolls over invalid calendar dates (e.g. 2025-02-30 -> 2025-03-02)
+    // instead of rejecting them. Reject anything that didn't round-trip exactly.
+    if (
+        date.getUTCFullYear() !== year ||
+        date.getUTCMonth() + 1 !== month ||
+        date.getUTCDate() !== day
+    ) {
+        return false;
+    }
+
     return true;
 }
 
@@ -147,13 +167,19 @@ export function generateTransactionId() {
  * Converts amount to GEL using currency rate
  * @param {number} amount - Amount to convert
  * @param {Object} currency - Currency object with rate and quantity
- * @returns {number} Converted amount in GEL
+ * @returns {number} Converted amount in GEL, or 0 if the currency data can't
+ *   produce a finite result (e.g. quantity <= 0, non-finite rate)
  */
 export function convertToGEL(amount, currency) {
+    if (!currency) return 0;
     if (currency.code === 'GEL') {
         return amount;
     }
-    return amount * currency.rate / currency.quantity;
+    if (!isFinite(currency.rate) || !isFinite(currency.quantity) || currency.quantity <= 0) {
+        return 0;
+    }
+    const result = amount * currency.rate / currency.quantity;
+    return isFinite(result) ? result : 0;
 }
 
 /**
@@ -213,10 +239,16 @@ export function calculateYTDForTransaction(transaction, allTransactions) {
         return (a.timestamp || '').localeCompare(b.timestamp || '');
     });
 
+    // Match strictly by id. validateTransaction guarantees every valid
+    // transaction has one, so this is always sufficient - falling back to a
+    // date+timestamp comparison (as this used to) misfires whenever two
+    // transactions share the same date and timestamp: the loop would stop
+    // at whichever one it reaches first, silently returning the wrong
+    // (too-low) running total for the other.
     let runningTotal = 0;
     for (const t of ytdTransactions) {
         runningTotal += t.convertedGEL;
-        if (t.id === transaction.id || (t.date === transaction.date && t.timestamp === transaction.timestamp)) {
+        if (t.id === transaction.id) {
             return runningTotal;
         }
     }
@@ -245,23 +277,44 @@ export function validateCSVHeader(header) {
 }
 
 /**
- * Parses a CSV line handling quoted values
+ * Parses a CSV line handling quoted values, escaped quotes ("") and empty
+ * fields. A regex-based "match non-empty runs" approach silently drops empty
+ * unquoted fields (e.g. 'a,,b' -> ['a','b']), which shifts every later
+ * column's index - this is a plain character-scanning parser instead so
+ * empty fields are preserved.
  * @param {string} line - CSV line
  * @returns {Array<string>} Array of values
  */
 export function parseCSVLine(line) {
-    const regex = /("([^"]|"")*"|[^,]+)/g;
     const values = [];
-    let match;
+    let current = '';
+    let inQuotes = false;
 
-    while ((match = regex.exec(line)) !== null) {
-        let value = match[0];
-        if (value.startsWith('"') && value.endsWith('"')) {
-            value = value.slice(1, -1).replace(/""/g, '"');
+    for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+
+        if (inQuotes) {
+            if (char === '"') {
+                if (line[i + 1] === '"') {
+                    current += '"';
+                    i++;
+                } else {
+                    inQuotes = false;
+                }
+            } else {
+                current += char;
+            }
+        } else if (char === '"') {
+            inQuotes = true;
+        } else if (char === ',') {
+            values.push(current);
+            current = '';
+        } else {
+            current += char;
         }
-        values.push(value);
     }
 
+    values.push(current);
     return values;
 }
 
