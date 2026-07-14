@@ -244,6 +244,16 @@ describe('App integration (real index.html + script.js)', () => {
             expect(global.alert).toHaveBeenCalledWith(expect.stringMatching(/default user/i));
         });
 
+        it('allows deleting the default user once a second user exists', () => {
+            global.prompt.mockReturnValueOnce('Alice').mockReturnValueOnce('');
+            window.addNewUser();
+
+            const deleted = window.deleteUser('user');
+
+            expect(deleted).toBe(true);
+            expect(JSON.parse(global.localStorage.getItem(STORAGE_KEYS.users)).some(u => u.id === 'user')).toBe(false);
+        });
+
         it('creates a new user via addNewUser and lists it', () => {
             global.prompt
                 .mockReturnValueOnce('Alice') // name

@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.5.1 2026-07-14
+
+- T4G-0006: Fixed `canDeleteUser` refusing to delete the default `user`
+  account even after a second user exists (e.g. after importing/merging a
+  backup) — it was previously undeletable unconditionally, contradicting
+  its own "create another user first" message. It's now only refused
+  while it's the sole remaining account, same as any other user.
+
 ## v1.5.0 2026-07-14
 
 - T4G-0021: Added the first real data schema migration, run when the

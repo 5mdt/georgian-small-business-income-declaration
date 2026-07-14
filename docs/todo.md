@@ -1,10 +1,10 @@
 # Bugs
 
-- `Cannot delete the default user. Please create another user first.` error after importing backup.
+- Clear All button deletes only transactions. Instead of Clear Cache, Clear All buttons in panel make a separate modal window with checkboxes, what to clear granually
 
 # Features to add
 
-- Make YTD income field bold only for the last transaction in month for each user.
+- Make YTD income field highlighted only for the last transaction in month for each user (CSS class).
 - Total income should be separated by user; supertotal income is useful too.
 - Tint rows with user's color in table.
 - Add yearly total separator in table.
@@ -23,3 +23,6 @@
 - Import full backup validation first
 - Import full backup dry-run
 - Safe localstorage data. Use html-codes for quotes and other special charecters?
+- Add changelog modal window, that gathers info from CHANGELOG.md
+- Add diff changelog to "app version updated window"
+- Make Toggle user list similar togglable as disclaimer and how it works, but collapsed by default

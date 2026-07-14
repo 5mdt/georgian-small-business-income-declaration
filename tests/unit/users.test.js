@@ -75,8 +75,8 @@ describe('updateUserInStorage', () => {
 });
 
 describe('canDeleteUser', () => {
-    it('refuses to delete the default "user" account', () => {
-        const result = canDeleteUser('user', [{ id: 'user' }, { id: 'user_2' }], []);
+    it('refuses to delete the default "user" account while it is the only user', () => {
+        const result = canDeleteUser('user', [{ id: 'user' }], []);
         expect(result.allowed).toBe(false);
         expect(result.reason).toMatch(/default user/i);
     });
@@ -85,6 +85,11 @@ describe('canDeleteUser', () => {
         const result = canDeleteUser('user_2', [{ id: 'user_2' }], []);
         expect(result.allowed).toBe(false);
         expect(result.reason).toMatch(/last user/i);
+    });
+
+    it('allows deleting the default "user" account once another user exists', () => {
+        const result = canDeleteUser('user', [{ id: 'user' }, { id: 'user_2' }], []);
+        expect(result.allowed).toBe(true);
     });
 
     it('allows deletion with no transactions and no confirmation needed', () => {

@@ -67,12 +67,10 @@ export function updateUserInStorage(userData) {
  * @returns {{allowed: boolean, reason?: string}}
  */
 export function canDeleteUser(userId, users, transactions) {
-    if (userId === 'user') {
-        return { allowed: false, reason: 'Cannot delete the default user. Please create another user first.' };
-    }
-
     if (users.length <= 1) {
-        return { allowed: false, reason: 'Cannot delete the last user.' };
+        return userId === 'user'
+            ? { allowed: false, reason: 'Cannot delete the default user. Please create another user first.' }
+            : { allowed: false, reason: 'Cannot delete the last user.' };
     }
 
     const userTransactions = transactions.filter(t => t.userId === userId);
