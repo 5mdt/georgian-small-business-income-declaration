@@ -14,7 +14,7 @@ import {
     debounce,
     compareVersions
 } from './src/utils.js';
-import { APP_VERSION } from './src/version.js';
+import { APP_VERSION, DATA_SCHEMA_VERSION } from './src/version.js';
 
 import { getFromStorage, saveToStorage, removeFromStorage } from './src/storage.js';
 import { sanitizeInput, showElement, hideElement, showError, hideError } from './src/dom.js';
@@ -173,6 +173,9 @@ const VERSION_STORAGE_KEY = 't4g_appVersion';
 function dismissUpdateModal() {
     hideElement(document.getElementById('updateModal'));
     saveToStorage(VERSION_STORAGE_KEY, APP_VERSION);
+    // The migration modal only makes sense once the update modal is out of
+    // the way - see the "Data Schema Migration" section below.
+    checkForSchemaMigration();
 }
 
 function checkForAppUpdate() {
@@ -181,6 +184,7 @@ function checkForAppUpdate() {
     if (storedVersion === null) {
         // First-ever visit - nothing to update from.
         saveToStorage(VERSION_STORAGE_KEY, APP_VERSION);
+        checkForSchemaMigration();
         return;
     }
 
@@ -188,6 +192,81 @@ function checkForAppUpdate() {
         const versionLabel = document.getElementById('updateModalVersion');
         if (versionLabel) versionLabel.textContent = APP_VERSION;
         showElement(document.getElementById('updateModal'));
+        // dismissUpdateModal() chains into checkForSchemaMigration() once
+        // this modal is acknowledged, so the two never stack.
+        return;
+    }
+
+    checkForSchemaMigration();
+}
+
+// ===========================
+// Data Schema Migration
+// ===========================
+//
+// Tracks the shape of the data stored in localStorage, separately from
+// APP_VERSION above (a UI-only release doesn't necessarily change the data
+// shape, and vice versa). Runs only after the update-notification flow
+// above has resolved, so at most one modal is visible at a time.
+
+const DATA_SCHEMA_STORAGE_KEY = 't4g_dataSchemaVersion';
+// True once the user has downloaded a backup during this page load, so
+// dismissMigrationModal() knows whether to confirm before closing.
+let migrationBackupDownloaded = false;
+
+function exportBackupCSV() {
+    const allTransactions = loadTransactions();
+
+    if (allTransactions.length === 0) {
+        alert('No transactions to back up.');
+        return;
+    }
+
+    // Unfiltered, unlike exportToCSV() - a backup must include every
+    // transaction regardless of the active filters.
+    const csvContent = buildExportCSVContent(
+        allTransactions,
+        (t) => calculateYTDForTransaction(t, allTransactions),
+        getUserById,
+        window.location.href
+    );
+
+    const todayISODate = new Date().toISOString().split('T')[0];
+    downloadCSV(csvContent, `gel-backup-${todayISODate}.csv`);
+    migrationBackupDownloaded = true;
+}
+
+function dismissMigrationModal() {
+    if (!migrationBackupDownloaded) {
+        const proceed = confirm(
+            'You haven\'t downloaded a backup. Continue without one?'
+        );
+        if (!proceed) return;
+    }
+
+    hideElement(document.getElementById('migrationModal'));
+    saveToStorage(DATA_SCHEMA_STORAGE_KEY, DATA_SCHEMA_VERSION);
+}
+
+function checkForSchemaMigration() {
+    const storedVersion = getFromStorage(DATA_SCHEMA_STORAGE_KEY, null);
+
+    if (storedVersion === null) {
+        // Data predating this feature is schema 1 if any exists; a fresh
+        // install with no data has nothing to migrate from.
+        const baseline = loadTransactions().length > 0 ? 1 : DATA_SCHEMA_VERSION;
+        if (baseline >= DATA_SCHEMA_VERSION) {
+            saveToStorage(DATA_SCHEMA_STORAGE_KEY, DATA_SCHEMA_VERSION);
+            return;
+        }
+        showElement(document.getElementById('migrationModal'));
+        return;
+    }
+
+    if (Number(storedVersion) < DATA_SCHEMA_VERSION) {
+        showElement(document.getElementById('migrationModal'));
+    } else {
+        saveToStorage(DATA_SCHEMA_STORAGE_KEY, DATA_SCHEMA_VERSION);
     }
 }
 
@@ -715,6 +794,22 @@ function renderTransactionList() {
 // ===========================
 
 // Function to export transactions to CSV
+// Creates a downloadable blob from CSV content and triggers the browser's
+// save dialog via a throwaway anchor. Shared by exportToCSV (filtered) and
+// exportBackupCSV (unfiltered, for the migration modal).
+function downloadCSV(csvContent, filename) {
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
 function exportToCSV() {
     const allTransactions = loadTransactions();
 
@@ -739,23 +834,14 @@ function exportToCSV() {
     const csvContent = buildExportCSVContent(
         transactions,
         (t) => calculateYTDForTransaction(t, allTransactions),
-        getUserById
+        getUserById,
+        window.location.href
     );
-
-    // Create blob and download
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
 
     const todayISODate = new Date().toISOString().split('T')[0];
     const filename = buildExportFilename(filterState, getUserById, todayISODate);
 
-    link.setAttribute('href', url);
-    link.setAttribute('download', filename);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    downloadCSV(csvContent, filename);
 }
 
 // Function to import transactions from CSV
@@ -1176,3 +1262,6 @@ window.deleteAllUsers = deleteAllUsers;
 window.toggleSort = toggleSort;
 window.dismissUpdateModal = dismissUpdateModal;
 window.checkForAppUpdate = checkForAppUpdate;
+window.dismissMigrationModal = dismissMigrationModal;
+window.exportBackupCSV = exportBackupCSV;
+window.checkForSchemaMigration = checkForSchemaMigration;

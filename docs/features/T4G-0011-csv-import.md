@@ -20,6 +20,11 @@ state plus stats, without touching storage or the DOM:
 - Skips a row if its `Timestamp` matches an existing transaction *or* an
   earlier row already processed in the same file (`existingTimestamps` set,
   updated as rows are processed).
+- Silently ignores the trailing `#`-prefixed comment lines (file
+  description, GitHub URL, instance URL, data schema version —
+  [[T4G-0019]]) that exports now end with — none has 12+ comma-separated
+  values, so `validateCSVRow` rejects each like any other malformed row,
+  with no special-casing needed.
 - Auto-creates any user referenced by ID that doesn't already exist
   (`ensureUserExistsFromCSV`), without duplicating known users.
 - `extractTransactionFromCSVRow` builds the transaction object, reading

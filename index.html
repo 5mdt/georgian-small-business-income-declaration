@@ -260,6 +260,19 @@
         </div>
     </div>
 
+    <div id="migrationModal" class="modal-overlay hidden">
+        <div class="modal card">
+            <h3>Data migration recommended</h3>
+            <p>Your saved data was created by an older version of this app.
+                We recommend downloading a backup before continuing, in
+                case the update changes how your data is stored.</p>
+            <div class="btn-group">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="exportBackupCSV()">⬇ Download backup (CSV)</button>
+                <button type="button" class="btn btn-primary btn-sm" onclick="dismissMigrationModal()">Continue</button>
+            </div>
+        </div>
+    </div>
+
     <script type="module" src="script.js"></script>
 </body>
 </html>

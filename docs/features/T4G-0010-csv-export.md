@@ -16,7 +16,16 @@ backup or handing to an accountant.
   one row per transaction, quoting/escaping user name, currency name, and
   comment. YTD is recomputed per row via `calculateYTDFn`
   ([[T4G-0008]]'s `calculateYTDForTransaction`) rather than reused from a
-  batch cache, since export operates on a filtered subset.
+  batch cache, since export operates on a filtered subset. Ends with
+  trailing `#`-prefixed comment lines: a file description, the project's
+  GitHub URL, the app's own URL at export time (`instanceUrl`, e.g.
+  `window.location.href` — optional, since `src/csv.js` has no `window`
+  access of its own and script.js injects it, same pattern as
+  `currency.js`'s injectable fetch; omitted if not passed), and the data
+  schema version ([[T4G-0019]]). Comments are placed *after* the data
+  rows, not before the header, so `buildImportResult` needs no changes:
+  none has 12+ comma-separated values, so `validateCSVRow` silently skips
+  all of them on re-import.
 - `buildExportFilename(filterState, getUserByIdFn, todayISODate)` —
   `gel-transactions-all-<date>.csv`, or
   `gel-transactions-<sanitized-user-name>-<date>.csv` when a user filter is

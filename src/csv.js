@@ -10,6 +10,7 @@
 
 import { validateCSVHeader, parseCSVLine, validateCSVRow, validateUser, generateTransactionId } from './utils.js';
 import { sanitizeInput } from './dom.js';
+import { DATA_SCHEMA_VERSION } from './version.js';
 
 /**
  * Builds a transaction object from a parsed CSV row.
@@ -122,14 +123,26 @@ export function buildImportResult(content, existingTransactions, existingUsers) 
 
 const EXPORT_CSV_HEADER = 'Date,User ID,User Name,Taxpayer ID,Currency Code,Currency Name,Amount,Exchange Rate,Quantity,Converted GEL,YTD Income,Comment,Timestamp\n';
 
+const APP_NAME = 'Currency to GEL Converter';
+const GITHUB_URL = 'https://github.com/5mdt/georgian-small-business-income-declaration';
+
 /**
  * Builds the CSV text for a set of (already filtered/sorted) transactions.
+ * Ends with trailing `#`-prefixed comment lines (file description, GitHub
+ * link, the instance URL if provided, and the data schema version). None
+ * has 12+ comma-separated values, so validateCSVRow() (and therefore
+ * buildImportResult()) silently skips all of them on re-import without
+ * needing any parser changes.
  * @param {Array<Object>} transactions - Transactions to export
  * @param {Function} calculateYTDFn - (transaction) => number, YTD for that transaction
  * @param {Function} getUserByIdFn - (userId) => user object | undefined
+ * @param {string} [instanceUrl] - The app's own URL at export time (e.g.
+ *   `window.location.href`), if known. src/csv.js has no `window` access of
+ *   its own, so script.js injects this - same pattern as currency.js's
+ *   injectable fetch.
  * @returns {string} CSV content, including header
  */
-export function buildExportCSVContent(transactions, calculateYTDFn, getUserByIdFn) {
+export function buildExportCSVContent(transactions, calculateYTDFn, getUserByIdFn, instanceUrl) {
     let csvContent = EXPORT_CSV_HEADER;
 
     transactions.forEach(t => {
@@ -143,6 +156,13 @@ export function buildExportCSVContent(transactions, calculateYTDFn, getUserByIdF
 
         csvContent += `${t.date},${t.userId},${escapedUserName},${taxpayerId},${t.currencyCode},${escapedCurrencyName},${t.amount},${t.rate},${t.quantity},${t.convertedGEL},${ytdIncome},${escapedComment},${t.timestamp}\n`;
     });
+
+    csvContent += `# ${APP_NAME} - CSV export\n`;
+    csvContent += `# ${GITHUB_URL}\n`;
+    if (instanceUrl) {
+        csvContent += `# Instance: ${instanceUrl}\n`;
+    }
+    csvContent += `# Data schema version: ${DATA_SCHEMA_VERSION}\n`;
 
     return csvContent;
 }

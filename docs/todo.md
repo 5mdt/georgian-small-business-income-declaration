@@ -4,8 +4,7 @@
 - Total income should be separated by user; supertotal income is useful too.
 - Tint rows with user's color in table.
 - Add yearly total separator in table.
-- Auto-export before schema migration.
-- Local storage key prefix.
+- Local storage key prefix for data.
 - Add pop-up hints on buttons.
 - Hide/grey out "Load Demo Data" button when transactions exist.
 - Suggest a backup before wiping all data.

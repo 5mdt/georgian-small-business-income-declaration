@@ -6,6 +6,7 @@ import {
     buildExportCSVContent,
     buildExportFilename
 } from '../../src/csv.js';
+import { DATA_SCHEMA_VERSION } from '../../src/version.js';
 
 const HEADER = 'Date,User ID,User Name,Taxpayer ID,Currency Code,Currency Name,Amount,Rate,Quantity,Converted GEL,Comment,Timestamp';
 const HEADER_WITH_YTD = 'Date,User ID,User Name,Taxpayer ID,Currency Code,Currency Name,Amount,Rate,Quantity,Converted GEL,YTD Income,Comment,Timestamp';
@@ -216,6 +217,38 @@ describe('export/import round trip', () => {
 
         expect(result.transactions[0].comment).toBe('Contract #123, final payment');
         expect(result.users[0].name).toBe('John "JD" Doe');
+    });
+
+    it('ends the export with info/schema-version comments that re-import silently ignores', () => {
+        const users = [{ id: 'user_1', name: 'John Doe', taxpayerId: '123456' }];
+        const transactions = [{
+            id: 'tx_1', userId: 'user_1', date: '2025-01-15', currencyCode: 'USD',
+            currencyName: 'US Dollar', amount: 100, rate: 2.875, quantity: 1,
+            convertedGEL: 287.5, comment: 'Test', timestamp: '1000'
+        }];
+
+        const csvContent = buildExportCSVContent(
+            transactions, () => 287.5, (id) => users.find(u => u.id === id),
+            'https://example.com/gel-converter/'
+        );
+        const trailingLines = csvContent.trim().split('\n').slice(2); // drop header + data row
+        expect(trailingLines).toEqual([
+            '# Currency to GEL Converter - CSV export',
+            '# https://github.com/5mdt/georgian-small-business-income-declaration',
+            '# Instance: https://example.com/gel-converter/',
+            `# Data schema version: ${DATA_SCHEMA_VERSION}`
+        ]);
+
+        const result = buildImportResult(csvContent, [], users);
+        expect(result.stats).toEqual({ imported: 1, skipped: 0, usersCreated: 0 });
+    });
+
+    it('omits the instance line when no instance URL is provided', () => {
+        const transactions = [];
+        const csvContent = buildExportCSVContent(transactions, () => 0, () => undefined);
+
+        expect(csvContent).not.toContain('# Instance:');
+        expect(csvContent).toContain(`# Data schema version: ${DATA_SCHEMA_VERSION}`);
     });
 });
 

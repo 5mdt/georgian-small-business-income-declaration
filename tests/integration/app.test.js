@@ -421,4 +421,117 @@ describe('App integration (real index.html + script.js)', () => {
             expect(JSON.parse(global.localStorage.getItem('t4g_appVersion'))).toBe(APP_VERSION);
         });
     });
+
+    describe('data schema migration', () => {
+        const isModalHidden = () => document.getElementById('migrationModal').classList.contains('hidden');
+
+        // Simulate a fresh page load: the modal starts hidden in index.html,
+        // but checkForSchemaMigration() only ever shows it, never re-hides it.
+        beforeEach(() => {
+            document.getElementById('migrationModal').classList.add('hidden');
+        });
+
+        it('persists the current schema version without a modal when there are no transactions', () => {
+            global.localStorage.removeItem('t4g_dataSchemaVersion');
+            global.localStorage.removeItem('transactions');
+
+            window.checkForSchemaMigration();
+
+            expect(isModalHidden()).toBe(true);
+            expect(JSON.parse(global.localStorage.getItem('t4g_dataSchemaVersion'))).toBe(1);
+        });
+
+        it('treats a missing key with existing transactions as schema 1 (no modal today)', () => {
+            global.localStorage.removeItem('t4g_dataSchemaVersion');
+            global.localStorage.setItem('transactions', JSON.stringify([{
+                id: 't1', userId: 'user', date: '2025-01-15', currencyCode: 'USD',
+                currencyName: 'US Dollar', amount: 10, rate: 2.875, quantity: 1,
+                convertedGEL: 28.75, comment: '', timestamp: Date.now()
+            }]));
+
+            window.checkForSchemaMigration();
+
+            // DATA_SCHEMA_VERSION is currently 1, same as the assumed baseline,
+            // so this is a no-op today - it only shows the modal once the
+            // schema is actually bumped past 1.
+            expect(isModalHidden()).toBe(true);
+            expect(JSON.parse(global.localStorage.getItem('t4g_dataSchemaVersion'))).toBe(1);
+        });
+
+        it('shows the modal when the stored schema version is older than current', () => {
+            global.localStorage.setItem('t4g_dataSchemaVersion', JSON.stringify(0));
+
+            window.checkForSchemaMigration();
+
+            expect(isModalHidden()).toBe(false);
+        });
+
+        it('requires confirmation to continue without downloading a backup, and honors cancel', () => {
+            global.localStorage.setItem('t4g_dataSchemaVersion', JSON.stringify(0));
+            window.checkForSchemaMigration();
+            expect(isModalHidden()).toBe(false);
+
+            global.confirm.mockReturnValueOnce(false);
+            window.dismissMigrationModal();
+            expect(global.confirm).toHaveBeenCalledTimes(1);
+            expect(isModalHidden()).toBe(false); // cancel keeps it open
+
+            window.dismissMigrationModal(); // default mock: confirm() -> true
+            expect(isModalHidden()).toBe(true);
+            expect(JSON.parse(global.localStorage.getItem('t4g_dataSchemaVersion'))).toBe(1);
+        });
+
+        it('downloading a backup skips the confirmation and exports every transaction, ignoring filters', async () => {
+            fillConversionForm({ amount: '10', currency: 'USD', addAsTransaction: true });
+            await clickConvert();
+
+            // Set a filter that would exclude the transaction just added, to
+            // prove the backup export ignores filterState entirely.
+            document.getElementById('filterUser').value = 'nonexistent-user';
+            document.getElementById('filterUser').dispatchEvent(new window.Event('change'));
+
+            global.localStorage.setItem('t4g_dataSchemaVersion', JSON.stringify(0));
+            window.checkForSchemaMigration();
+            expect(isModalHidden()).toBe(false);
+
+            let capturedBlob;
+            global.URL.createObjectURL = vi.fn((blob) => {
+                capturedBlob = blob;
+                return 'blob:mock-url';
+            });
+            global.URL.revokeObjectURL = vi.fn();
+
+            window.exportBackupCSV();
+            expect(global.URL.createObjectURL).toHaveBeenCalledTimes(1);
+
+            const csvText = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsText(capturedBlob);
+            });
+            expect(csvText).toContain('USD');
+
+            window.dismissMigrationModal();
+
+            expect(global.confirm).not.toHaveBeenCalled();
+            expect(isModalHidden()).toBe(true);
+        });
+
+        it('shows the update modal before the migration modal when both are pending', () => {
+            document.getElementById('updateModal').classList.add('hidden');
+            global.localStorage.setItem('t4g_appVersion', JSON.stringify('0.0.1'));
+            global.localStorage.setItem('t4g_dataSchemaVersion', JSON.stringify(0));
+
+            window.checkForAppUpdate();
+
+            expect(document.getElementById('updateModal').classList.contains('hidden')).toBe(false);
+            expect(isModalHidden()).toBe(true); // migration modal not shown yet
+
+            window.dismissUpdateModal();
+
+            expect(document.getElementById('updateModal').classList.contains('hidden')).toBe(true);
+            expect(isModalHidden()).toBe(false); // now the migration modal appears
+        });
+    });
 });

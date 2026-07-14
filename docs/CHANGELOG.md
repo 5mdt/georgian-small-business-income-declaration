@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.3.0 2026-07-14
+
+- T4G-0019: Added a data schema version, tracked separately from the app
+  version — when the stored data predates the running code's schema, a
+  modal recommends downloading a full CSV backup before continuing, and
+  requires confirmation to proceed without one. Runs after the T4G-0018
+  update modal, never stacked with it. Every CSV export (T4G-0010) now
+  ends with trailing comment lines — file description, GitHub link,
+  instance URL (when known), and the data schema version — all silently
+  ignored on re-import (T4G-0011).
+
 ## v1.2.0 2026-07-14
 
 - T4G-0018: Added an in-app update notification — on load, compares the

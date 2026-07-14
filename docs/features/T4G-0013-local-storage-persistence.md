@@ -26,9 +26,10 @@ without a backend.
 
 Keys in use: `users`, `transactions`, `currencyRates_${date}` per date
 ([[T4G-0002]]), `themePreference` ([[T4G-0015]]), `addTransaction`
-(checkbox state). `sessionStorage` additionally holds
-`collapsible_<sectionId>` state (not persisted across browser sessions by
-design).
+(checkbox state), `t4g_appVersion` ([[T4G-0018]]), `t4g_dataSchemaVersion`
+([[T4G-0019]]) — the latter two are the first prefixed keys in the app.
+`sessionStorage` additionally holds `collapsible_<sectionId>` state (not
+persisted across browser sessions by design).
 
 ## Testing
 
