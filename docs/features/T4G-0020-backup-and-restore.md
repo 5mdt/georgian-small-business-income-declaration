@@ -92,21 +92,26 @@ exported (`currentDataSchemaVersion()`, same value used for the
 schema-of-data tag above) — **not a snapshot of every `localStorage` key
 unconditionally**:
 
-- **Schema version `1`** (or the "key missing" baseline, which
-  `currentDataSchemaVersion()` already resolves to `1`) — **legacy
-  scope**: `users`, `transactions`, and every `t4g_`-prefixed key
-  (`t4g_appVersion`, `t4g_dataSchemaVersion`). Exchange-rate cache
-  (`currencyRates_<date>`) and UI settings (`themePreference`,
-  `addTransaction`) are excluded.
-- **Any other version** (`0`, `2`, `3`, …) — **`t4g_`-only scope**: only
-  keys starting with `t4g_`. Anticipates a future schema bump relocating
-  the actual data tables under `t4g_`-prefixed keys, at which point the
-  legacy `users`/`transactions` keys are no longer part of the current
-  shape. Today `DATA_SCHEMA_VERSION` is `1` and no migration logic exists
-  (same forward-looking-infra-ahead-of-need pattern as [[T4G-0019]]), so in
-  practice this only matters for a devtools-forced version like `0`
-  (the [[T4G-0019]] migration-modal test scenario) — real installs always
-  hit the legacy scope above.
+- **Schema version `1`** — **legacy scope**: `users`, `transactions`, and
+  every `t4g_`-prefixed key (at schema `1`, just `t4g_appVersion`/
+  `t4g_dataSchemaVersion`). Exchange-rate cache (`currencyRates_<date>`) and
+  UI settings (`themePreference`, `addTransaction`) are excluded — genuine
+  schema-`1` data predates the `t4g_` namespace entirely, so they're still
+  under their unprefixed names and don't match either branch of the filter.
+- **Schema version `2`+ (today's real shape, since [[T4G-0021]])** —
+  **`t4g_`-only scope**: only keys starting with `t4g_`. As of the schema
+  `1` → `2` key-namespacing migration ([[T4G-0021]]), this now legitimately
+  includes the actual data tables (`t4g_data_users`, `t4g_data_transactions`
+  — see `src/keys.js`), since they were relocated under the `t4g_` prefix.
+  UI settings (`t4g_config_*`) and the rate cache (`t4g_cache_*`) are
+  included too, since they're `t4g_`-prefixed as well — a schema-`2`+ full
+  backup is now a genuinely complete snapshot.
+
+Restoring a backup migrates its data to the current schema before applying
+it (`processJSONImport()`, `script.js`, via `runMigrations()` —
+[[T4G-0021]]), so a schema-`1` backup's raw `users`/`transactions`/
+`themePreference` keys land under their `t4g_`-prefixed equivalents on
+restore, whichever scope the original export was taken under.
 
 `src/backup.js`:
 - `selectBackupKeys(allKeys, dataSchemaVersion)` — pure filter implementing
@@ -123,12 +128,16 @@ unconditionally**:
   malformed or isn't a backup envelope. Returns `{ data, meta }` where
   `meta` is every envelope field except `data`.
 - `mergeBackupData(existingUsers, existingTransactions, backupData)` — for
-  a non-overwrite JSON restore: adds each user in `backupData.users` that
-  passes `validateUser` and isn't already present by `id`; adds each
-  transaction in `backupData.transactions` that passes `validateTransaction`
+  a non-overwrite JSON restore: adds each user in
+  `backupData[STORAGE_KEYS.users]` that passes `validateUser` and isn't
+  already present by `id`; adds each transaction in
+  `backupData[STORAGE_KEYS.transactions]` that passes `validateTransaction`
   and isn't already present by `timestamp`. Returns `{ users, transactions }`.
-  Settings keys (theme, versions, rate cache) are left untouched on a
-  non-overwrite restore — only users/transactions are merged.
+  `backupData` is expected already migrated to the current schema (see
+  below), so it's read from the canonical keys (`src/keys.js`), not raw
+  `users`/`transactions`. Settings keys (theme, versions, rate cache) are
+  left untouched on a non-overwrite restore — only users/transactions are
+  merged.
 
 `src/storage.js`:
 - `getAllStorageKeys(storageBackend = getStorage())` — enumerates every key
@@ -145,13 +154,16 @@ unconditionally**:
   storage directly (not through `filterState`), so — unlike `exportToCSV`
   — it's inherently unfiltered within whatever scope applies, with no
   separate "ignore filters" logic needed.
-- On import, a `.json` file is restored via `parseBackupJSON`: `overwrite`
-  false calls `mergeBackupData` and saves the merged `users`/`transactions`
-  only; `overwrite` true removes every currently-tracked key
-  (`getAllStorageKeys` + `removeFromStorage`) then writes every key from
-  the file's `data` object as-is (a true wholesale restore — but only of
-  whichever keys the backup actually contains, per the scope it was
-  exported under).
+- On import, a `.json` file is restored via `parseBackupJSON`, then
+  migrated to the current schema via `runMigrations(data, meta.dataSchemaVersion, DATA_SCHEMA_VERSION)`
+  ([[T4G-0021]]) before being applied — a pre-migration backup's raw key
+  names would otherwise be unwritable/unreadable by the current code.
+  `overwrite` false calls `mergeBackupData` on the migrated snapshot and
+  saves the merged `users`/`transactions` only; `overwrite` true removes
+  every currently-tracked key (`getAllStorageKeys` + `removeFromStorage`)
+  then writes every key from the migrated snapshot as-is (a true wholesale
+  restore — but only of whichever keys the backup actually contains, per
+  the scope it was exported under) and stamps `DATA_SCHEMA_VERSION`.
 
 ### Modals
 
@@ -224,22 +236,25 @@ None.
 - Check "Overwrite data" — a warning appears recommending a backup first;
   importing a transactions or users CSV now replaces the whole
   table/dataset with the file's contents instead of merging.
-- On a normal install (schema version `1`), export a full JSON backup,
-  clear all data, re-import it with "Overwrite data" checked — `users` and
-  `transactions` are restored exactly; theme/add-transaction-checkbox/rate
-  cache are *not* part of this backup and stay at their defaults after
-  restore (see Full JSON backup above for why).
+- On a normal install (today's real schema version, `2`+ — see
+  [[T4G-0021]]), export a full JSON backup, clear all data, re-import it
+  with "Overwrite data" checked — `users`, `transactions`, theme, and the
+  add-transaction checkbox are all restored exactly, since every key is now
+  `t4g_`-prefixed (see Full JSON backup above).
 - Import that same JSON backup again without "Overwrite data" — users and
   transactions merge in without duplicating; nothing changes if it's
   already fully present.
-- In devtools, set `t4g_dataSchemaVersion` to `2` (simulating a future
-  schema) and export a full JSON backup — the file contains only
-  `t4g_appVersion`/`t4g_dataSchemaVersion`, no `users`/`transactions`.
+- In devtools, seed legacy (unprefixed) `users`/`transactions` keys and set
+  `t4g_dataSchemaVersion` to `1` (simulating a still-unmigrated install),
+  then export a full JSON backup — the file contains `users`/`transactions`/
+  `t4g_appVersion`/`t4g_dataSchemaVersion`, but not `themePreference` or any
+  `currencyRates_*` key.
 - In devtools, set `t4g_dataSchemaVersion` below `DATA_SCHEMA_VERSION` with
-  a transaction present, reload to trigger the migration modal, click
-  "Download backup" — the shared Export modal opens; downloading the full
-  JSON backup lets "Continue" proceed without the no-backup confirmation
-  (the other two formats don't, since neither is guaranteed complete).
+  legacy transaction data present, reload to trigger the migration modal,
+  click "Download backup" — the shared Export modal opens; downloading the
+  full JSON backup lets "Continue" proceed without the no-backup
+  confirmation (the other two formats don't, since neither is guaranteed
+  complete) and also runs the actual key-renaming migration ([[T4G-0021]]).
 
 ### Unit Testing
 
@@ -252,10 +267,11 @@ id, invalid rows dropped; `buildImportResult` overwrite vs. default merge
 
 `tests/unit/backup.test.js`: `buildBackupJSON` envelope shape; round-trip
 through `parseBackupJSON`; throws on malformed/non-backup JSON;
-`mergeBackupData` adds only new users/transactions by id/timestamp;
-`selectBackupKeys` — schema `1` keeps `users`/`transactions`/`t4g_*` and
-drops settings/rate-cache keys, schema `0`/`2`/other keep only `t4g_*`,
-empty key lists and lists with no `t4g_*` keys behave sanely.
+`mergeBackupData` adds only new users/transactions by id/timestamp, reading
+them from the canonical `STORAGE_KEYS` (`src/keys.js`); `selectBackupKeys` —
+schema `1` keeps `users`/`transactions`/`t4g_*` and drops settings/rate-cache
+keys, schema `0`/`2`/other keep only `t4g_*`, empty key lists and lists with
+no `t4g_*` keys behave sanely.
 
 `tests/unit/storage.test.js`: `getAllStorageKeys` reflects every key
 written via `saveToStorage`.
@@ -263,10 +279,12 @@ written via `saveToStorage`.
 ### Integration Testing
 
 `tests/integration/app.test.js`: Export modal buttons produce the right
-file per option; a full JSON backup at schema `1` includes
+file per option; a full JSON backup at (seeded, legacy) schema `1` includes
 `users`/`transactions`/`t4g_*` but not settings/rate-cache (and ignores
-active filters), while a backup at another schema version includes only
-`t4g_*` keys; choosing a file stages it (`onImportFileChosen()` enables
+active filters), while a backup at the current schema version includes
+every `t4g_*` key, now including the migrated data tables; restoring an old
+schema-`1` JSON backup migrates it to the current key names before applying
+it; choosing a file stages it (`onImportFileChosen()` enables
 "Start Import" without importing) and only `startImport()` actually runs
 it; Import modal auto-detects `.json` vs. each `.csv` kind; overwrite
 checked replaces existing data, unchecked merges; migration modal's

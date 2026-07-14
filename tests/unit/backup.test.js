@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { buildBackupJSON, parseBackupJSON, mergeBackupData, selectBackupKeys } from '../../src/backup.js';
 import { ERROR_MESSAGES } from '../../src/utils.js';
+import { STORAGE_KEYS } from '../../src/keys.js';
 
 describe('buildBackupJSON', () => {
     it('wraps the snapshot in an envelope with the injected schema version', () => {
@@ -64,8 +65,8 @@ describe('mergeBackupData', () => {
         }];
 
         const backupData = {
-            users: [{ id: 'user_1', name: 'Existing' }, { id: 'user_2', name: 'New' }],
-            transactions: [
+            [STORAGE_KEYS.users]: [{ id: 'user_1', name: 'Existing' }, { id: 'user_2', name: 'New' }],
+            [STORAGE_KEYS.transactions]: [
                 { id: 'tx_1', userId: 'user_1', date: '2025-01-01', currencyCode: 'USD', amount: 1, convertedGEL: 1, timestamp: '1000' },
                 { id: 'tx_2', userId: 'user_2', date: '2025-01-02', currencyCode: 'USD', amount: 2, convertedGEL: 2, timestamp: '2000' }
             ]
@@ -79,7 +80,7 @@ describe('mergeBackupData', () => {
 
     it('does not duplicate a user already present by id', () => {
         const existingUsers = [{ id: 'user_1', name: 'Existing' }];
-        const backupData = { users: [{ id: 'user_1', name: 'Different Name' }], transactions: [] };
+        const backupData = { [STORAGE_KEYS.users]: [{ id: 'user_1', name: 'Different Name' }], [STORAGE_KEYS.transactions]: [] };
 
         const result = mergeBackupData(existingUsers, [], backupData);
 
@@ -93,8 +94,8 @@ describe('mergeBackupData', () => {
             amount: 1, convertedGEL: 1, timestamp: '1000'
         }];
         const backupData = {
-            users: [],
-            transactions: [{ id: 'tx_2', userId: 'user_1', date: '2025-01-01', currencyCode: 'USD', amount: 5, convertedGEL: 5, timestamp: '1000' }]
+            [STORAGE_KEYS.users]: [],
+            [STORAGE_KEYS.transactions]: [{ id: 'tx_2', userId: 'user_1', date: '2025-01-01', currencyCode: 'USD', amount: 5, convertedGEL: 5, timestamp: '1000' }]
         };
 
         const result = mergeBackupData([], existingTransactions, backupData);
@@ -104,7 +105,7 @@ describe('mergeBackupData', () => {
     });
 
     it('ignores invalid users/transactions in the backup data', () => {
-        const backupData = { users: [{ id: '', name: '' }], transactions: [{ id: 'bad' }] };
+        const backupData = { [STORAGE_KEYS.users]: [{ id: '', name: '' }], [STORAGE_KEYS.transactions]: [{ id: 'bad' }] };
         const result = mergeBackupData([], [], backupData);
 
         expect(result.users).toEqual([]);

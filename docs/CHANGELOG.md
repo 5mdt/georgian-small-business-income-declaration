@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.5.0 2026-07-14
+
+- T4G-0021: Added the first real data schema migration, run when the
+  migration modal's "Continue" is clicked (previously a no-op that only
+  stamped the schema version — see T4G-0019). Schema `1` → `2` renames the
+  five legacy `localStorage` keys to a `t4g_<category>_` namespace:
+  `transactions`/`users` → `t4g_data_*`, `themePreference`/`addTransaction`
+  → `t4g_config_*`, `currencyRates_<date>` → `t4g_cache_currencyRates_<date>`.
+  Restoring an old JSON backup (T4G-0020) now migrates its data to the
+  current schema before applying it, so a pre-migration backup's raw key
+  names don't get silently dropped. `DATA_SCHEMA_VERSION`: `1` → `2`.
+
 ## v1.4.0 2026-07-14
 
 - T4G-0020: Export and import now go through modals instead of one-shot

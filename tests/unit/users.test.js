@@ -6,6 +6,7 @@ import {
     removeUserFromStorage,
     getUserById
 } from '../../src/users.js';
+import { STORAGE_KEYS } from '../../src/keys.js';
 
 describe('loadUsers', () => {
     beforeEach(() => {
@@ -16,18 +17,18 @@ describe('loadUsers', () => {
         const users = loadUsers();
         expect(users).toEqual([{ id: 'user', name: 'user', taxpayerId: '' }]);
         // The default user is persisted, not just returned
-        expect(JSON.parse(global.localStorage.getItem('users'))).toEqual(users);
+        expect(JSON.parse(global.localStorage.getItem(STORAGE_KEYS.users))).toEqual(users);
     });
 
     it('returns previously stored valid users', () => {
         const stored = [{ id: 'user_abc', name: 'Alice', taxpayerId: '123' }];
-        global.localStorage.setItem('users', JSON.stringify(stored));
+        global.localStorage.setItem(STORAGE_KEYS.users, JSON.stringify(stored));
 
         expect(loadUsers()).toEqual(stored);
     });
 
     it('drops invalid entries and falls back to default when none are valid', () => {
-        global.localStorage.setItem('users', JSON.stringify([{ name: 'no id' }, {}]));
+        global.localStorage.setItem(STORAGE_KEYS.users, JSON.stringify([{ name: 'no id' }, {}]));
         expect(loadUsers()).toEqual([{ id: 'user', name: 'user', taxpayerId: '' }]);
     });
 
@@ -36,7 +37,7 @@ describe('loadUsers', () => {
             { id: 'user_1', name: 'Valid', taxpayerId: '' },
             { name: 'missing id' }
         ];
-        global.localStorage.setItem('users', JSON.stringify(mixed));
+        global.localStorage.setItem(STORAGE_KEYS.users, JSON.stringify(mixed));
 
         expect(loadUsers()).toEqual([mixed[0]]);
     });
@@ -66,10 +67,10 @@ describe('updateUserInStorage', () => {
 
     it('rejects invalid user data without touching storage', () => {
         loadUsers();
-        const before = global.localStorage.getItem('users');
+        const before = global.localStorage.getItem(STORAGE_KEYS.users);
 
         expect(updateUserInStorage({ name: 'no id' })).toBe(false);
-        expect(global.localStorage.getItem('users')).toBe(before);
+        expect(global.localStorage.getItem(STORAGE_KEYS.users)).toBe(before);
     });
 });
 
@@ -118,7 +119,7 @@ describe('removeUserFromStorage', () => {
     });
 
     it('removes only the targeted user', () => {
-        global.localStorage.setItem('users', JSON.stringify([
+        global.localStorage.setItem(STORAGE_KEYS.users, JSON.stringify([
             { id: 'user', name: 'user', taxpayerId: '' },
             { id: 'user_2', name: 'Bob', taxpayerId: '' }
         ]));

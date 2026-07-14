@@ -6,6 +6,7 @@ import {
     updateTransactionCommentInStorage,
     removeUserTransactions
 } from '../../src/transactions.js';
+import { STORAGE_KEYS } from '../../src/keys.js';
 
 function makeTransaction(overrides = {}) {
     return {
@@ -35,20 +36,20 @@ describe('loadTransactions', () => {
 
     it('returns stored valid transactions', () => {
         const tx = makeTransaction();
-        global.localStorage.setItem('transactions', JSON.stringify([tx]));
+        global.localStorage.setItem(STORAGE_KEYS.transactions, JSON.stringify([tx]));
         expect(loadTransactions()).toEqual([tx]);
     });
 
     it('filters out invalid transactions rather than throwing', () => {
         const valid = makeTransaction();
         const invalid = { id: 'broken' };
-        global.localStorage.setItem('transactions', JSON.stringify([valid, invalid]));
+        global.localStorage.setItem(STORAGE_KEYS.transactions, JSON.stringify([valid, invalid]));
 
         expect(loadTransactions()).toEqual([valid]);
     });
 
     it('returns an empty array if the stored value is not an array', () => {
-        global.localStorage.setItem('transactions', JSON.stringify({ not: 'an array' }));
+        global.localStorage.setItem(STORAGE_KEYS.transactions, JSON.stringify({ not: 'an array' }));
         expect(loadTransactions()).toEqual([]);
     });
 });

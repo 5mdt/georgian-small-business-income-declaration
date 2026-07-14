@@ -10,13 +10,14 @@
 import { getFromStorage, saveToStorage } from './storage.js';
 import { validateTransaction } from './utils.js';
 import { sanitizeInput } from './dom.js';
+import { STORAGE_KEYS } from './keys.js';
 
 /**
  * Loads valid transactions from storage.
  * @returns {Array<Object>}
  */
 export function loadTransactions() {
-    const transactions = getFromStorage('transactions', []);
+    const transactions = getFromStorage(STORAGE_KEYS.transactions, []);
     if (!Array.isArray(transactions)) return [];
     return transactions.filter(validateTransaction);
 }
@@ -34,7 +35,7 @@ export function addTransactionToStorage(transactionData) {
 
     const transactions = loadTransactions();
     transactions.push(transactionData);
-    return saveToStorage('transactions', transactions);
+    return saveToStorage(STORAGE_KEYS.transactions, transactions);
 }
 
 /**
@@ -45,7 +46,7 @@ export function addTransactionToStorage(transactionData) {
 export function removeTransactionFromStorage(id) {
     const transactions = loadTransactions();
     const filtered = transactions.filter(t => t.id !== id);
-    return saveToStorage('transactions', filtered);
+    return saveToStorage(STORAGE_KEYS.transactions, filtered);
 }
 
 /**
@@ -61,7 +62,7 @@ export function updateTransactionCommentInStorage(id, newComment) {
     if (!transaction) return false;
 
     transaction.comment = sanitizeInput(newComment);
-    return saveToStorage('transactions', transactions);
+    return saveToStorage(STORAGE_KEYS.transactions, transactions);
 }
 
 /**
@@ -73,5 +74,5 @@ export function updateTransactionCommentInStorage(id, newComment) {
 export function removeUserTransactions(userId) {
     const transactions = loadTransactions();
     const filteredTransactions = transactions.filter(t => t.userId !== userId);
-    return saveToStorage('transactions', filteredTransactions);
+    return saveToStorage(STORAGE_KEYS.transactions, filteredTransactions);
 }

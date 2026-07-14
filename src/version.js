@@ -6,7 +6,7 @@
 // site with no build step, so it can't be read from package.json at
 // runtime - bump this by hand alongside docs/CHANGELOG.md entries.
 
-export const APP_VERSION = '1.4.0';
+export const APP_VERSION = '1.5.0';
 
 // ===========================
 // Data Schema Version
@@ -19,4 +19,4 @@ export const APP_VERSION = '1.4.0';
 // conventional DB-migration numbering (Rails/Django style) instead. Bump
 // by hand whenever a stored data shape actually changes.
 
-export const DATA_SCHEMA_VERSION = 1;
+export const DATA_SCHEMA_VERSION = 2;

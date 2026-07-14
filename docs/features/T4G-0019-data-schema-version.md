@@ -38,8 +38,9 @@ style). Bumped by hand whenever a stored data shape actually changes.
     check.
   - "Continue" → `dismissMigrationModal()`. If no backup was downloaded
     this session, `confirm()`s first; canceling leaves the modal open. On
-    confirm (or if a backup was already downloaded), persists
-    `DATA_SCHEMA_VERSION` and hides the modal. No backdrop/Escape
+    confirm (or if a backup was already downloaded), runs the actual data
+    migration (`runSchemaMigration()` — see [[T4G-0021]]), persists
+    `DATA_SCHEMA_VERSION`, and hides the modal. No backdrop/Escape
     dismissal.
 
 **Load ordering with T4G-0018**: `checkForSchemaMigration()` only runs
@@ -64,9 +65,11 @@ needed.
 ## Configuration
 
 `DATA_SCHEMA_VERSION` in `src/version.js` must be bumped by hand whenever a
-stored data shape changes, alongside whatever migration/transform logic
-that change requires (none exists yet — this feature only ships the
-version-tracking and backup-prompt infrastructure).
+stored data shape changes, alongside a matching entry in `src/migrations.js`'s
+`MIGRATIONS` registry and transform function — see [[T4G-0021]], the schema
+`1` → `2` key-namespacing migration that's the first to use this runner.
+`dismissMigrationModal()` (`script.js`) runs the migration (via
+`runSchemaMigration()`) before stamping the new version.
 
 ## Testing
 
@@ -88,9 +91,10 @@ version-tracking and backup-prompt infrastructure).
 
 ### Integration Testing
 
-`tests/integration/app.test.js` (`data schema migration`): key missing +
-no transactions (silent baseline); key missing + transactions (treated as
-schema 1, no modal); stored version below current (modal shows); Continue
+`tests/integration/app.test.js` (`data schema migration`): key missing + no
+legacy data (silent fresh-install baseline); key missing + legacy transactions
+present (baseline resolves to schema 1, modal shows since the code is schema
+2 — see [[T4G-0021]]); stored version below current (modal shows); Continue
 without backup (confirm-gated); Download backup opens the Export modal and
 a successful export from it skips the confirm; modal ordering relative to
 the update-notification modal.

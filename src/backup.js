@@ -8,12 +8,13 @@
 
 import { ERROR_MESSAGES, validateUser, validateTransaction } from './utils.js';
 import { APP_NAME } from './csv.js';
+import { STORAGE_KEYS } from './keys.js';
 
 // Keys predating the t4g_ prefixing convention (see src/storage.js's
-// getAllStorageKeys) that still hold the actual data tables under schema
-// version 1. A future schema bump is expected to relocate these under
-// t4g_-prefixed keys, at which point they stop being backed up explicitly
-// here - see selectBackupKeys below.
+// getAllStorageKeys) that held the actual data tables under schema
+// version 1. Schema version 2 (src/migrations.js's migrateV1toV2) relocated
+// them under t4g_-prefixed keys (see src/keys.js), so this list only
+// matters for backups taken from still-unmigrated (schema 1) data.
 const LEGACY_BACKUP_KEYS = ['users', 'transactions'];
 
 /**
@@ -21,16 +22,14 @@ const LEGACY_BACKUP_KEYS = ['users', 'transactions'];
  * the schema version of the data being exported (not necessarily the
  * running code's DATA_SCHEMA_VERSION - see script.js's
  * currentDataSchemaVersion()):
- * - Schema version 1 (or the "key missing" baseline, which
- *   currentDataSchemaVersion() already resolves to 1): legacy scope -
- *   `users`, `transactions`, and every `t4g_`-prefixed key. Exchange-rate
- *   cache and UI settings (theme, add-transaction checkbox) are excluded.
- * - Any other version (0, 2, 3...): only `t4g_`-prefixed keys. Anticipates
- *   a future schema bump relocating the actual data tables under
- *   `t4g_`-prefixed keys, at which point the legacy `users`/`transactions`
- *   keys are no longer part of the current shape. No migration exists yet
- *   (same forward-looking-infra-ahead-of-need pattern as T4G-0019), so in
- *   practice this only matters for a devtools-forced version like `0`.
+ * - Schema version 1: legacy scope - `users`, `transactions`, and every
+ *   `t4g_`-prefixed key. Exchange-rate cache and UI settings (theme,
+ *   add-transaction checkbox) were unprefixed pre-migration and thus
+ *   excluded.
+ * - Schema version 2+ (the current shape, post-migration): only
+ *   `t4g_`-prefixed keys - this now includes the data tables
+ *   (`t4g_data_*`), UI settings (`t4g_config_*`), and the rate cache
+ *   (`t4g_cache_*`), all relocated under the prefix by migrateV1toV2.
  * @param {Array<string>} allKeys - Every key currently in storage (e.g. via getAllStorageKeys)
  * @param {number} dataSchemaVersion
  * @returns {Array<string>} The subset of allKeys to include in the backup
@@ -95,14 +94,16 @@ export function parseBackupJSON(jsonString) {
  * script.js only calls saveToStorage for those two keys in this path.
  * @param {Array<Object>} existingUsers
  * @param {Array<Object>} existingTransactions
- * @param {Object} backupData - The backup envelope's `data` object
+ * @param {Object} backupData - The backup envelope's `data` object, already
+ *   migrated to the current schema (see src/migrations.js's runMigrations),
+ *   so users/transactions are read from their canonical keys (src/keys.js)
  * @returns {{users: Array<Object>, transactions: Array<Object>}}
  */
 export function mergeBackupData(existingUsers, existingTransactions, backupData) {
     const users = [...existingUsers];
     const userIds = new Set(users.map(u => u.id));
 
-    (backupData.users || []).forEach(u => {
+    (backupData[STORAGE_KEYS.users] || []).forEach(u => {
         if (validateUser(u) && !userIds.has(u.id)) {
             users.push(u);
             userIds.add(u.id);
@@ -112,7 +113,7 @@ export function mergeBackupData(existingUsers, existingTransactions, backupData)
     const transactions = [...existingTransactions];
     const timestamps = new Set(transactions.map(t => t.timestamp));
 
-    (backupData.transactions || []).forEach(t => {
+    (backupData[STORAGE_KEYS.transactions] || []).forEach(t => {
         if (validateTransaction(t) && !timestamps.has(t.timestamp)) {
             transactions.push(t);
             timestamps.add(t.timestamp);

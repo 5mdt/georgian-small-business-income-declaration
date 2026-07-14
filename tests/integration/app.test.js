@@ -2,7 +2,8 @@ import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vite
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { APP_VERSION } from '../../src/version.js';
+import { APP_VERSION, DATA_SCHEMA_VERSION } from '../../src/version.js';
+import { STORAGE_KEYS, CURRENCY_RATE_KEY_PREFIX } from '../../src/keys.js';
 
 // DOM-integration tests: load the *real* index.html markup into jsdom and
 // import the real script.js against it, driving the app the way a user
@@ -150,7 +151,7 @@ describe('App integration (real index.html + script.js)', () => {
             const commentInput = document.querySelector('#transactionList input.input-inline');
             expect(commentInput).toBeTruthy();
 
-            const transactions = JSON.parse(global.localStorage.getItem('transactions'));
+            const transactions = JSON.parse(global.localStorage.getItem(STORAGE_KEYS.transactions));
             const txId = transactions[transactions.length - 1].id;
 
             window.updateTransactionComment(txId, '<img src=x onerror=alert(1)>');
@@ -158,7 +159,7 @@ describe('App integration (real index.html + script.js)', () => {
             const updatedInputValue = document.getElementById(`comment-${txId}`).value;
             expect(updatedInputValue).not.toContain('<img');
 
-            const storedComment = JSON.parse(global.localStorage.getItem('transactions'))
+            const storedComment = JSON.parse(global.localStorage.getItem(STORAGE_KEYS.transactions))
                 .find(t => t.id === txId).comment;
             expect(storedComment).toBe('&lt;img src=x onerror=alert(1)&gt;');
         });
@@ -167,12 +168,12 @@ describe('App integration (real index.html + script.js)', () => {
             fillConversionForm({ amount: '10', addAsTransaction: true });
             await clickConvert();
 
-            const transactions = JSON.parse(global.localStorage.getItem('transactions'));
+            const transactions = JSON.parse(global.localStorage.getItem(STORAGE_KEYS.transactions));
             const txId = transactions[transactions.length - 1].id;
 
             window.deleteTransaction(txId);
 
-            const remaining = JSON.parse(global.localStorage.getItem('transactions'));
+            const remaining = JSON.parse(global.localStorage.getItem(STORAGE_KEYS.transactions));
             expect(remaining.find(t => t.id === txId)).toBeUndefined();
         });
 
@@ -183,7 +184,7 @@ describe('App integration (real index.html + script.js)', () => {
             global.confirm.mockReturnValue(false);
             window.clearAllTransactions();
 
-            expect(JSON.parse(global.localStorage.getItem('transactions')).length).toBeGreaterThan(0);
+            expect(JSON.parse(global.localStorage.getItem(STORAGE_KEYS.transactions)).length).toBeGreaterThan(0);
         });
 
         it('clears all transactions on confirmation', async () => {
@@ -259,19 +260,19 @@ describe('App integration (real index.html + script.js)', () => {
             global.prompt.mockReturnValueOnce('Bob').mockReturnValueOnce('');
             window.addNewUser();
 
-            const users = JSON.parse(global.localStorage.getItem('users'));
+            const users = JSON.parse(global.localStorage.getItem(STORAGE_KEYS.users));
             const bob = users.find(u => u.name === 'Bob');
 
             fillConversionForm({ amount: '10', addAsTransaction: true, userId: bob.id });
             await clickConvert();
 
-            expect(JSON.parse(global.localStorage.getItem('transactions')).some(t => t.userId === bob.id)).toBe(true);
+            expect(JSON.parse(global.localStorage.getItem(STORAGE_KEYS.transactions)).some(t => t.userId === bob.id)).toBe(true);
 
             global.confirm.mockReturnValue(true); // confirm cascading delete
             window.deleteUser(bob.id);
 
-            expect(JSON.parse(global.localStorage.getItem('users')).some(u => u.id === bob.id)).toBe(false);
-            expect(JSON.parse(global.localStorage.getItem('transactions')).some(t => t.userId === bob.id)).toBe(false);
+            expect(JSON.parse(global.localStorage.getItem(STORAGE_KEYS.users)).some(u => u.id === bob.id)).toBe(false);
+            expect(JSON.parse(global.localStorage.getItem(STORAGE_KEYS.transactions)).some(t => t.userId === bob.id)).toBe(false);
         });
     });
 
@@ -432,18 +433,24 @@ describe('App integration (real index.html + script.js)', () => {
             document.getElementById('migrationModal').classList.add('hidden');
         });
 
-        it('persists the current schema version without a modal when there are no transactions', () => {
+        it('persists the current schema version without a modal on a fresh install (no legacy keys)', () => {
             global.localStorage.removeItem('t4g_dataSchemaVersion');
-            global.localStorage.removeItem('transactions');
+            // No raw (unprefixed) legacy key is present - the app only ever
+            // writes canonical t4g_-prefixed keys - so this is the "nothing
+            // to migrate from" baseline.
 
             window.checkForSchemaMigration();
 
             expect(isModalHidden()).toBe(true);
-            expect(JSON.parse(global.localStorage.getItem('t4g_dataSchemaVersion'))).toBe(1);
+            expect(JSON.parse(global.localStorage.getItem('t4g_dataSchemaVersion'))).toBe(DATA_SCHEMA_VERSION);
         });
 
-        it('treats a missing key with existing transactions as schema 1 (no modal today)', () => {
+        it('treats a missing key with existing legacy transactions as schema 1 and shows the migration modal', () => {
             global.localStorage.removeItem('t4g_dataSchemaVersion');
+            // Raw 'transactions' simulates data written by pre-T4G-0021 code
+            // - detectBaselineSchemaVersion() (script.js) can't rely on
+            // loadTransactions() here since that reads the canonical
+            // t4g_data_transactions key, which is empty for this data.
             global.localStorage.setItem('transactions', JSON.stringify([{
                 id: 't1', userId: 'user', date: '2025-01-15', currencyCode: 'USD',
                 currencyName: 'US Dollar', amount: 10, rate: 2.875, quantity: 1,
@@ -452,11 +459,13 @@ describe('App integration (real index.html + script.js)', () => {
 
             window.checkForSchemaMigration();
 
-            // DATA_SCHEMA_VERSION is currently 1, same as the assumed baseline,
-            // so this is a no-op today - it only shows the modal once the
-            // schema is actually bumped past 1.
-            expect(isModalHidden()).toBe(true);
-            expect(JSON.parse(global.localStorage.getItem('t4g_dataSchemaVersion'))).toBe(1);
+            // Baseline resolves to schema 1, below the current
+            // DATA_SCHEMA_VERSION (2), so the migration modal appears and
+            // nothing is stamped until it's dismissed.
+            expect(isModalHidden()).toBe(false);
+            expect(global.localStorage.getItem('t4g_dataSchemaVersion')).toBeNull();
+
+            global.localStorage.removeItem('transactions');
         });
 
         it('shows the modal when the stored schema version is older than current', () => {
@@ -479,7 +488,7 @@ describe('App integration (real index.html + script.js)', () => {
 
             window.dismissMigrationModal(); // default mock: confirm() -> true
             expect(isModalHidden()).toBe(true);
-            expect(JSON.parse(global.localStorage.getItem('t4g_dataSchemaVersion'))).toBe(1);
+            expect(JSON.parse(global.localStorage.getItem('t4g_dataSchemaVersion'))).toBe(DATA_SCHEMA_VERSION);
         });
 
         it('downloading a backup skips the confirmation, tagged with the mismatched schema version', async () => {
@@ -662,18 +671,27 @@ describe('App integration (real index.html + script.js)', () => {
             });
         });
 
-        it('exports a full JSON backup in legacy scope (schema 1): users/transactions/t4g_* only, no settings or rate cache', async () => {
+        it('exports a full JSON backup in legacy scope (schema 1): raw users/transactions/t4g_* only, no settings or rate cache', async () => {
             fillConversionForm({ amount: '10', currency: 'USD', addAsTransaction: true });
             await clickConvert();
 
-            // Seed the settings/t4g_* keys explicitly so their inclusion/
-            // exclusion is actually demonstrated, not just coincidentally
-            // absent. checkForAppUpdate() -> checkForSchemaMigration()
-            // naturally persists t4g_appVersion/t4g_dataSchemaVersion=1
-            // (transactions exist, matching the real fresh-data baseline).
+            // tests/setup.js clears localStorage before every test, so the
+            // only keys present now are the canonical ones clickConvert()
+            // just wrote. Genuine schema-1 data predates the t4g_ prefix
+            // entirely, so move those canonical keys back to their
+            // pre-migration (raw, unprefixed) names, and seed the rest, to
+            // demonstrate the legacy-scope exclusion rather than leaving it
+            // coincidentally absent.
+            const users = global.localStorage.getItem(STORAGE_KEYS.users);
+            const transactions = global.localStorage.getItem(STORAGE_KEYS.transactions);
+            expect(global.localStorage.getItem(`${CURRENCY_RATE_KEY_PREFIX}2025-01-15`)).not.toBeNull();
+
+            global.localStorage.clear();
+            global.localStorage.setItem('users', users);
+            global.localStorage.setItem('transactions', transactions);
             global.localStorage.setItem('themePreference', JSON.stringify('dark'));
-            window.checkForAppUpdate();
-            expect(global.localStorage.getItem('currencyRates_2025-01-15')).not.toBeNull();
+            global.localStorage.setItem('t4g_appVersion', JSON.stringify(APP_VERSION));
+            global.localStorage.setItem('t4g_dataSchemaVersion', JSON.stringify(1));
 
             // Apply a filter that would exclude the transaction just added,
             // to prove the backup reads storage directly and ignores
@@ -693,15 +711,14 @@ describe('App integration (real index.html + script.js)', () => {
             expect(backup.dataSchemaVersion).toBe(1);
             expect(Object.keys(backup.data).sort()).toEqual(['t4g_appVersion', 't4g_dataSchemaVersion', 'transactions', 'users'].sort());
             expect(backup.data).not.toHaveProperty('themePreference');
-            expect(backup.data).not.toHaveProperty('currencyRates_2025-01-15');
+            expect(backup.data).not.toHaveProperty(`${CURRENCY_RATE_KEY_PREFIX}2025-01-15`);
         });
 
-        it('exports a full JSON backup in t4g_*-only scope when the stored schema is not 1', async () => {
+        it('exports a full JSON backup in t4g_*-only scope, which now includes the migrated data tables', async () => {
             fillConversionForm({ amount: '10', currency: 'USD', addAsTransaction: true });
             await clickConvert();
 
-            window.checkForAppUpdate(); // seeds t4g_appVersion/t4g_dataSchemaVersion
-            global.localStorage.setItem('t4g_dataSchemaVersion', JSON.stringify(2));
+            window.checkForAppUpdate(); // seeds t4g_appVersion/t4g_dataSchemaVersion (now 2, post-migration)
 
             const getBlob = stubDownload();
             window.exportBackupJSON();
@@ -709,8 +726,12 @@ describe('App integration (real index.html + script.js)', () => {
             const jsonText = await readBlobAsText(getBlob());
             const backup = JSON.parse(jsonText);
 
-            expect(backup.dataSchemaVersion).toBe(2);
-            expect(Object.keys(backup.data).sort()).toEqual(['t4g_appVersion', 't4g_dataSchemaVersion'].sort());
+            expect(backup.dataSchemaVersion).toBe(DATA_SCHEMA_VERSION);
+            // Every key in the backup is t4g_-prefixed - including the data
+            // tables, now that they live under t4g_data_* (see src/keys.js).
+            expect(Object.keys(backup.data).every(key => key.startsWith('t4g_'))).toBe(true);
+            expect(backup.data).toHaveProperty(STORAGE_KEYS.transactions);
+            expect(backup.data).toHaveProperty(STORAGE_KEYS.users);
             expect(backup.data).not.toHaveProperty('users');
             expect(backup.data).not.toHaveProperty('transactions');
         });
@@ -823,7 +844,10 @@ describe('App integration (real index.html + script.js)', () => {
             expect(global.alert).toHaveBeenCalledWith(expect.stringContaining('Backup restored'));
             const names = Array.from(document.querySelectorAll('#userList input[id^="userName-"]')).map(i => i.value);
             expect(names).toEqual(['Restored User']); // the pre-existing default user is gone
-            expect(JSON.parse(global.localStorage.getItem('themePreference'))).toBe('dark');
+            // The restored backup is schema 1 (raw themePreference key) -
+            // processJSONImport migrates it before applying, so it lands
+            // under the canonical t4g_config_themePreference key.
+            expect(JSON.parse(global.localStorage.getItem(STORAGE_KEYS.themePreference))).toBe('dark');
         });
 
         it('alerts when the JSON file is malformed', async () => {

@@ -7,6 +7,7 @@
 
 import { ERROR_MESSAGES, API_TIMEOUT } from './utils.js';
 import { getFromStorage, saveToStorage } from './storage.js';
+import { CURRENCY_RATE_KEY_PREFIX } from './keys.js';
 
 /**
  * Builds the synthetic GEL "currency" (rate 1, no API lookup needed).
@@ -62,7 +63,7 @@ export function findCurrencyInData(data, currencyCode) {
  * @returns {*} Cached response, or null
  */
 export function getCurrencyRatesFromCache(date) {
-    return getFromStorage(`currencyRates_${date}`);
+    return getFromStorage(`${CURRENCY_RATE_KEY_PREFIX}${date}`);
 }
 
 /**
@@ -71,7 +72,7 @@ export function getCurrencyRatesFromCache(date) {
  * @param {*} data - NBG API response to cache
  */
 export function saveCurrencyRatesToCache(date, data) {
-    saveToStorage(`currencyRates_${date}`, data);
+    saveToStorage(`${CURRENCY_RATE_KEY_PREFIX}${date}`, data);
 }
 
 /**

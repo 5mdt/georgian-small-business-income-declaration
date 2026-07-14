@@ -15,6 +15,8 @@ import {
     compareVersions
 } from './src/utils.js';
 import { APP_VERSION, DATA_SCHEMA_VERSION } from './src/version.js';
+import { STORAGE_KEYS, CURRENCY_RATE_KEY_PREFIX, COLLAPSIBLE_KEY_PREFIX } from './src/keys.js';
+import { runMigrations } from './src/migrations.js';
 
 import { getFromStorage, saveToStorage, removeFromStorage, getAllStorageKeys } from './src/storage.js';
 import { sanitizeInput, showElement, hideElement, showError, hideError } from './src/dom.js';
@@ -62,7 +64,7 @@ import {
 // Theme Management
 // ===========================
 
-const THEME_STORAGE_KEY = 'themePreference';
+const THEME_STORAGE_KEY = STORAGE_KEYS.themePreference;
 const THEME_OPTIONS = ['system', 'light', 'dark'];
 const THEME_ICONS = {
     system: '💡',
@@ -219,6 +221,11 @@ function checkForAppUpdate() {
 // above has resolved, so at most one modal is visible at a time.
 
 const DATA_SCHEMA_STORAGE_KEY = 't4g_dataSchemaVersion';
+// Unprefixed keys written by schema-1 code (see src/migrations.js's
+// migrateV1toV2). Legacy currency-rate keys are date-suffixed, so they're
+// matched by prefix rather than listed individually.
+const LEGACY_SCHEMA_1_KEYS = ['transactions', 'users', 'themePreference', 'addTransaction'];
+const LEGACY_CURRENCY_RATE_KEY_PREFIX = 'currencyRates_';
 // True once the user has downloaded a *complete* backup during this page
 // load, so dismissMigrationModal() knows whether to confirm before
 // closing. Only exportBackupJSON() sets this - unlike exportToCSV() (can
@@ -226,6 +233,20 @@ const DATA_SCHEMA_STORAGE_KEY = 't4g_dataSchemaVersion';
 // transactions), the JSON backup is the only export guaranteed to capture
 // everything, so it's the only one that counts as "a backup".
 let migrationBackupDownloaded = false;
+
+// Schema version of already-stored data when DATA_SCHEMA_STORAGE_KEY is
+// absent - either a fresh install (nothing stored) or data written by
+// pre-T4G-0019 code. Checks for the presence of any legacy (unprefixed,
+// schema-1) key directly, rather than loadTransactions().length, since
+// loadTransactions() reads from the schema-2 t4g_data_transactions key and
+// can no longer see schema-1 data once that key exists.
+function detectBaselineSchemaVersion() {
+    const allKeys = getAllStorageKeys();
+    const hasLegacyData = allKeys.some(key =>
+        LEGACY_SCHEMA_1_KEYS.includes(key) || key.startsWith(LEGACY_CURRENCY_RATE_KEY_PREFIX)
+    );
+    return hasLegacyData ? 1 : DATA_SCHEMA_VERSION;
+}
 
 // The schema version of the data actually stored right now - not
 // DATA_SCHEMA_VERSION (the running code's schema). Every export tags
@@ -235,7 +256,32 @@ let migrationBackupDownloaded = false;
 function currentDataSchemaVersion() {
     const storedVersion = getFromStorage(DATA_SCHEMA_STORAGE_KEY, null);
     if (storedVersion !== null) return Number(storedVersion);
-    return loadTransactions().length > 0 ? 1 : DATA_SCHEMA_VERSION;
+    return detectBaselineSchemaVersion();
+}
+
+// Migrates every localStorage key from its current schema up to
+// DATA_SCHEMA_VERSION (see src/migrations.js's MIGRATIONS registry) and
+// stamps the new version. Reads the whole storage into a plain snapshot,
+// transforms it, then reconciles: keys the migration dropped (renamed away
+// from) are removed, keys present in the result are (re)written.
+function runSchemaMigration() {
+    const storedVersion = getFromStorage(DATA_SCHEMA_STORAGE_KEY, null);
+    const fromVersion = storedVersion !== null ? Number(storedVersion) : detectBaselineSchemaVersion();
+
+    const allKeys = getAllStorageKeys();
+    const snapshot = {};
+    allKeys.forEach(key => {
+        snapshot[key] = getFromStorage(key);
+    });
+
+    const migrated = runMigrations(snapshot, fromVersion, DATA_SCHEMA_VERSION);
+
+    allKeys.forEach(key => {
+        if (!(key in migrated)) removeFromStorage(key);
+    });
+    Object.entries(migrated).forEach(([key, value]) => saveToStorage(key, value));
+
+    saveToStorage(DATA_SCHEMA_STORAGE_KEY, DATA_SCHEMA_VERSION);
 }
 
 function dismissMigrationModal() {
@@ -246,8 +292,15 @@ function dismissMigrationModal() {
         if (!proceed) return;
     }
 
+    runSchemaMigration();
+    // The page already rendered against the pre-migration (canonical-key)
+    // data during onload() - possibly just an auto-seeded default user, if
+    // the real data was still sitting under the legacy keys at that point
+    // (see migrateV1toV2's collision handling, src/migrations.js). Refresh
+    // so the user doesn't see a stale/empty view after their data has
+    // actually been migrated.
+    triggerDataRefresh();
     hideElement(document.getElementById('migrationModal'));
-    saveToStorage(DATA_SCHEMA_STORAGE_KEY, DATA_SCHEMA_VERSION);
 }
 
 function checkForSchemaMigration() {
@@ -256,7 +309,7 @@ function checkForSchemaMigration() {
     if (storedVersion === null) {
         // Data predating this feature is schema 1 if any exists; a fresh
         // install with no data has nothing to migrate from.
-        const baseline = loadTransactions().length > 0 ? 1 : DATA_SCHEMA_VERSION;
+        const baseline = detectBaselineSchemaVersion();
         if (baseline >= DATA_SCHEMA_VERSION) {
             saveToStorage(DATA_SCHEMA_STORAGE_KEY, DATA_SCHEMA_VERSION);
             return;
@@ -358,7 +411,7 @@ function updateTransactionComment(id, newComment) {
 function clearAllTransactions() {
     if (!confirm('Are you sure you want to delete all transactions?')) return false;
 
-    const success = removeFromStorage('transactions');
+    const success = removeFromStorage(STORAGE_KEYS.transactions);
     if (success) {
         renderTransactionList();
     }
@@ -369,7 +422,7 @@ function clearRateCache() {
     if (!confirm('Are you sure you want to clear all cached exchange rates?')) return false;
 
     const keys = Object.keys(localStorage);
-    const rateKeys = keys.filter(key => key.startsWith('currencyRates_'));
+    const rateKeys = keys.filter(key => key.startsWith(CURRENCY_RATE_KEY_PREFIX));
 
     rateKeys.forEach(key => removeFromStorage(key));
     alert('Exchange rate cache cleared successfully.');
@@ -379,14 +432,14 @@ function clearRateCache() {
 function saveCheckboxState() {
     const checkbox = document.getElementById('addTransactionCheckbox');
     if (!checkbox) return;
-    saveToStorage('addTransaction', checkbox.checked);
+    saveToStorage(STORAGE_KEYS.addTransaction, checkbox.checked);
 }
 
 function loadCheckboxState() {
     const checkbox = document.getElementById('addTransactionCheckbox');
     if (!checkbox) return;
 
-    const storedState = getFromStorage('addTransaction', false);
+    const storedState = getFromStorage(STORAGE_KEYS.addTransaction, false);
     checkbox.checked = storedState === true;
 }
 
@@ -407,12 +460,12 @@ function toggleCollapsible(sectionId) {
         // Expand
         content.classList.remove('collapsed');
         icon.classList.remove('collapsed');
-        sessionStorage.setItem(`collapsible_${sectionId}`, 'expanded');
+        sessionStorage.setItem(`${COLLAPSIBLE_KEY_PREFIX}${sectionId}`, 'expanded');
     } else {
         // Collapse
         content.classList.add('collapsed');
         icon.classList.add('collapsed');
-        sessionStorage.setItem(`collapsible_${sectionId}`, 'collapsed');
+        sessionStorage.setItem(`${COLLAPSIBLE_KEY_PREFIX}${sectionId}`, 'collapsed');
     }
 }
 
@@ -421,7 +474,7 @@ function restoreCollapsibleStates() {
     const sections = ['disclaimer', 'howItWorks'];
 
     sections.forEach(sectionId => {
-        const state = sessionStorage.getItem(`collapsible_${sectionId}`);
+        const state = sessionStorage.getItem(`${COLLAPSIBLE_KEY_PREFIX}${sectionId}`);
         const content = document.getElementById(`${sectionId}-content`);
         const icon = document.getElementById(`${sectionId}-icon`);
 
@@ -886,8 +939,8 @@ function processCSVContent(content) {
 
     const { users, transactions, stats } = buildImportResult(content, existingTransactions, existingUsers);
 
-    saveToStorage('users', users);
-    saveToStorage('transactions', transactions);
+    saveToStorage(STORAGE_KEYS.users, users);
+    saveToStorage(STORAGE_KEYS.transactions, transactions);
 
     return stats;
 }
@@ -996,7 +1049,7 @@ function processCSVImportAuto(content, overwrite) {
     if (kind === 'users') {
         const existingUsers = loadUsers();
         const { users, stats } = buildUsersImportResult(content, existingUsers, overwrite);
-        saveToStorage('users', users);
+        saveToStorage(STORAGE_KEYS.users, users);
         return `Users import completed!\nImported: ${stats.imported}\nSkipped (duplicates): ${stats.skipped}`;
     }
 
@@ -1004,8 +1057,8 @@ function processCSVImportAuto(content, overwrite) {
         const existingTransactions = loadTransactions();
         const existingUsers = loadUsers();
         const { users, transactions, stats } = buildImportResult(content, existingTransactions, existingUsers, overwrite);
-        saveToStorage('users', users);
-        saveToStorage('transactions', transactions);
+        saveToStorage(STORAGE_KEYS.users, users);
+        saveToStorage(STORAGE_KEYS.transactions, transactions);
         return 'Import completed!\n' +
             `Imported: ${stats.imported}\n` +
             `Skipped (duplicates): ${stats.skipped}\n` +
@@ -1015,25 +1068,30 @@ function processCSVImportAuto(content, overwrite) {
     throw new Error(ERROR_MESSAGES.INVALID_CSV);
 }
 
-// Restores a full JSON backup. overwrite=false merges users/transactions
-// only, leaving settings (theme, versions, rate cache) untouched.
-// overwrite=true wipes every currently-tracked key and writes the file's
-// data back as-is, a true wholesale restore.
+// Restores a full JSON backup, migrating its data up to DATA_SCHEMA_VERSION
+// first (a backup taken pre-migration stores data under old key names - see
+// src/migrations.js - so it can't be applied verbatim). overwrite=false
+// merges users/transactions only, leaving settings (theme, versions, rate
+// cache) untouched. overwrite=true wipes every currently-tracked key and
+// writes the migrated data back, a true wholesale restore.
 function processJSONImport(content, overwrite) {
-    const { data } = parseBackupJSON(content);
+    const { data, meta } = parseBackupJSON(content);
+    const backupSchemaVersion = Number(meta.dataSchemaVersion) || 1;
+    const migrated = runMigrations(data, backupSchemaVersion, DATA_SCHEMA_VERSION);
 
     if (overwrite) {
         getAllStorageKeys().forEach(key => removeFromStorage(key));
-        Object.entries(data).forEach(([key, value]) => saveToStorage(key, value));
+        Object.entries(migrated).forEach(([key, value]) => saveToStorage(key, value));
+        saveToStorage(DATA_SCHEMA_STORAGE_KEY, DATA_SCHEMA_VERSION);
         return 'Backup restored! All existing data was replaced.';
     }
 
     const existingUsers = loadUsers();
     const existingTransactions = loadTransactions();
-    const { users, transactions } = mergeBackupData(existingUsers, existingTransactions, data);
+    const { users, transactions } = mergeBackupData(existingUsers, existingTransactions, migrated);
 
-    saveToStorage('users', users);
-    saveToStorage('transactions', transactions);
+    saveToStorage(STORAGE_KEYS.users, users);
+    saveToStorage(STORAGE_KEYS.transactions, transactions);
     return 'Backup merged! Users and transactions from the file were added without duplicating existing data.';
 }
 
@@ -1282,8 +1340,8 @@ function deleteAllUsers() {
     }
 
     const defaultUser = createDefaultUser();
-    const usersSuccess = saveToStorage('users', [defaultUser]);
-    const transactionsSuccess = saveToStorage('transactions', []);
+    const usersSuccess = saveToStorage(STORAGE_KEYS.users, [defaultUser]);
+    const transactionsSuccess = saveToStorage(STORAGE_KEYS.transactions, []);
 
     if (usersSuccess && transactionsSuccess) {
         triggerDataRefresh();

@@ -9,6 +9,7 @@
 
 import { getFromStorage, saveToStorage } from './storage.js';
 import { validateUser, createDefaultUser } from './utils.js';
+import { STORAGE_KEYS } from './keys.js';
 
 /**
  * Loads users from storage, seeding a default user if none exist or none
@@ -16,18 +17,18 @@ import { validateUser, createDefaultUser } from './utils.js';
  * @returns {Array<Object>} Array of user objects
  */
 export function loadUsers() {
-    const users = getFromStorage('users');
+    const users = getFromStorage(STORAGE_KEYS.users);
 
     if (!users || !Array.isArray(users) || users.length === 0) {
         const defaultUser = createDefaultUser();
-        saveToStorage('users', [defaultUser]);
+        saveToStorage(STORAGE_KEYS.users, [defaultUser]);
         return [defaultUser];
     }
 
     const validUsers = users.filter(validateUser);
     if (validUsers.length === 0) {
         const defaultUser = createDefaultUser();
-        saveToStorage('users', [defaultUser]);
+        saveToStorage(STORAGE_KEYS.users, [defaultUser]);
         return [defaultUser];
     }
 
@@ -54,7 +55,7 @@ export function updateUserInStorage(userData) {
         users.push(userData);
     }
 
-    return saveToStorage('users', users);
+    return saveToStorage(STORAGE_KEYS.users, users);
 }
 
 /**
@@ -96,7 +97,7 @@ export function canDeleteUser(userId, users, transactions) {
 export function removeUserFromStorage(userId) {
     const users = loadUsers();
     const filteredUsers = users.filter(u => u.id !== userId);
-    return saveToStorage('users', filteredUsers);
+    return saveToStorage(STORAGE_KEYS.users, filteredUsers);
 }
 
 /**

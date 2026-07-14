@@ -20,13 +20,14 @@
 - [T4G-0018. Update notification](features/T4G-0018-update-notification.md) - `#updates` `#ui` `#storage`
 - [T4G-0019. Data schema version](features/T4G-0019-data-schema-version.md) - `#storage` `#migration` `#ui` `#csv`
 - [T4G-0020. Backup & Restore](features/T4G-0020-backup-and-restore.md) - `#csv` `#storage` `#users` `#transactions` `#ui` `#migration`
+- [T4G-0021. Schema migration: key namespacing](features/T4G-0021-schema-migration-key-namespacing.md) - `#storage` `#migration`
 
 ## Tags
 
 - `#currency`: T4G-0001, T4G-0002, T4G-0003, T4G-0004, T4G-0017
 - `#rates`: T4G-0002, T4G-0003
 - `#conversion`: T4G-0001
-- `#storage`: T4G-0002, T4G-0013, T4G-0014, T4G-0018, T4G-0019, T4G-0020
+- `#storage`: T4G-0002, T4G-0013, T4G-0014, T4G-0018, T4G-0019, T4G-0020, T4G-0021
 - `#validation`: T4G-0003, T4G-0016
 - `#users`: T4G-0005, T4G-0006, T4G-0014, T4G-0020
 - `#transactions`: T4G-0006, T4G-0007, T4G-0008, T4G-0009, T4G-0014, T4G-0020
@@ -37,4 +38,4 @@
 - `#offline`: T4G-0013
 - `#theme`: T4G-0015
 - `#updates`: T4G-0018
-- `#migration`: T4G-0019, T4G-0020
+- `#migration`: T4G-0019, T4G-0020, T4G-0021

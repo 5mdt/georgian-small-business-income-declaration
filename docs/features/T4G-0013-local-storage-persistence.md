@@ -29,16 +29,20 @@ without a backend.
   full JSON backup ([[T4G-0020]]) to snapshot and, on a wholesale restore,
   wipe every key the app has written.
 
-Keys in use: `users`, `transactions`, `currencyRates_${date}` per date
-([[T4G-0002]]), `themePreference` ([[T4G-0015]]), `addTransaction`
-(checkbox state), `t4g_appVersion` ([[T4G-0018]]), `t4g_dataSchemaVersion`
-([[T4G-0019]]) — the latter two are the first prefixed keys in the app.
-`sessionStorage` additionally holds `collapsible_<sectionId>` state (not
-persisted across browser sessions by design). The full JSON backup
-([[T4G-0020]]) does **not** snapshot every key unconditionally — its scope
-depends on the stored data schema version (`users`/`transactions`/`t4g_*`
-at schema `1`; only `t4g_*` otherwise), so `currencyRates_*`/
-`themePreference`/`addTransaction` are excluded in both cases today.
+Keys in use (`src/keys.js`, since [[T4G-0021]]'s schema `1` → `2`
+namespacing migration): `t4g_data_users`, `t4g_data_transactions`,
+`t4g_cache_currencyRates_${date}` per date ([[T4G-0002]]),
+`t4g_config_themePreference` ([[T4G-0015]]), `t4g_config_addTransaction`
+(checkbox state) — plus the pre-existing `t4g_appVersion` ([[T4G-0018]]) and
+`t4g_dataSchemaVersion` ([[T4G-0019]]), which predate the category
+convention and aren't renamed. `sessionStorage` additionally holds
+`t4g_config_collapsible_<sectionId>` state (`COLLAPSIBLE_KEY_PREFIX`,
+`src/keys.js`; not persisted across browser sessions by design, and not
+part of the schema migration since there's nothing to migrate there). The
+full JSON backup ([[T4G-0020]]) does **not** snapshot every key
+unconditionally — its scope depends on the stored data schema version
+(legacy `users`/`transactions`/`t4g_*` at schema `1`; every `t4g_*` key,
+which now includes the data/config/cache keys above, at schema `2`+).
 
 ## Testing
 
