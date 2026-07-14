@@ -1,7 +1,3 @@
-# Bugs
-
-- When there are more than one transaction in one date with same user, sorting works inconsistently.
-
 # Features to add
 
 - Make YTD income field bold only for the last transaction in month for each user.

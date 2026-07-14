@@ -154,6 +154,59 @@ describe('sortTransactions', () => {
         sortTransactions(transactions, userMap, ytdCache, createDefaultFilterState());
         expect(transactions).toEqual(copy);
     });
+
+    describe('same-date tie-break', () => {
+        // Same date and same user (t1/t2), different timestamps; t3 is on a
+        // different date entirely and should always sort by date first.
+        const tied = [
+            { id: 't1', userId: 'u1', currencyCode: 'USD', date: '2025-01-10', amount: 100, convertedGEL: 287.5, timestamp: '2025-01-10T09:00:00.000Z' },
+            { id: 't2', userId: 'u1', currencyCode: 'EUR', date: '2025-01-10', amount: 50, convertedGEL: 155, timestamp: '2025-01-10T15:00:00.000Z' },
+            { id: 't3', userId: 'u1', currencyCode: 'EUR', date: '2025-03-01', amount: 200, convertedGEL: 620, timestamp: '2025-03-01T10:00:00.000Z' }
+        ];
+        const tiedUserMap = new Map([['u1', { id: 'u1', name: 'Zoe' }]]);
+        const tiedYtdCache = new Map([['t1', 287.5], ['t2', 442.5], ['t3', 1062.5]]);
+
+        it('breaks same-date ties by timestamp ascending when sorting asc', () => {
+            const sorted = sortTransactions(tied, tiedUserMap, tiedYtdCache, {
+                ...createDefaultFilterState(),
+                sortDirection: 'asc'
+            });
+            expect(sorted.map(t => t.id)).toEqual(['t1', 't2', 't3']);
+        });
+
+        it('breaks same-date ties by timestamp descending when sorting desc', () => {
+            const sorted = sortTransactions(tied, tiedUserMap, tiedYtdCache, {
+                ...createDefaultFilterState(),
+                sortDirection: 'desc'
+            });
+            expect(sorted.map(t => t.id)).toEqual(['t3', 't2', 't1']);
+        });
+
+        it('is stable and deterministic across repeated sorts (same input order)', () => {
+            const first = sortTransactions(tied, tiedUserMap, tiedYtdCache, createDefaultFilterState());
+            const second = sortTransactions([...tied].reverse(), tiedUserMap, tiedYtdCache, createDefaultFilterState());
+            expect(second.map(t => t.id)).toEqual(first.map(t => t.id));
+        });
+
+        it('falls back to id when timestamps are equal or missing', () => {
+            const noTimestamp = [
+                { id: 'tb', userId: 'u1', currencyCode: 'USD', date: '2025-01-10', amount: 100, convertedGEL: 287.5 },
+                { id: 'ta', userId: 'u1', currencyCode: 'EUR', date: '2025-01-10', amount: 50, convertedGEL: 155 }
+            ];
+            const cache = new Map([['ta', 155], ['tb', 442.5]]);
+            const asc = sortTransactions(noTimestamp, tiedUserMap, cache, {
+                ...createDefaultFilterState(),
+                sortDirection: 'asc'
+            });
+            expect(asc.map(t => t.id)).toEqual(['ta', 'tb']);
+
+            const desc = sortTransactions(noTimestamp, tiedUserMap, cache, {
+                ...createDefaultFilterState(),
+                sortDirection: 'desc'
+            });
+            expect(desc.map(t => t.id)).toEqual(['tb', 'ta']);
+        });
+    });
 });
 
 describe('SORT_STRATEGIES', () => {

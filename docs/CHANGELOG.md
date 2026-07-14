@@ -1,6 +1,16 @@
 # Changelog
 
-## v1.0.0 2026-10-12
+## v1.1.0 2026-07-14
+
+- T4G-0009: Fixed inconsistent sort order for same-date transactions —
+  `sortTransactions` now breaks ties deterministically by `timestamp` then
+  `id` (following `sortDirection`), matching YTD accumulation order instead
+  of arbitrary storage order.
+- T4G-0012: Added a second same-date transaction to `demo-data.csv`
+  (2025-01-15, Nino Beridze) so the same-date tie-break is demonstrable via
+  "Load Demo Data".
+
+## v1.0.0 2025-10-12
 
 - T4G-0017: Amount formatting documented (`formatCurrency`, `getCurrencySymbol`).
 - T4G-0016: Input validation documented (date, amount, currency code, user, transaction).

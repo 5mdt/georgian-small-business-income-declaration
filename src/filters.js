@@ -84,8 +84,15 @@ export function sortTransactions(transactions, userMap, ytdCache, filterState) {
     const sorted = [...transactions];
 
     sorted.sort((a, b) => {
-        const result = sortStrategy(a, b, userMap, ytdCache);
-        return result * direction;
+        const primary = sortStrategy(a, b, userMap, ytdCache);
+        if (primary !== 0) return primary * direction;
+        // Deterministic tie-break for equal primary values (e.g. multiple
+        // transactions on the same date) so the order is stable and matches
+        // the YTD accumulation order (see precalculateAllYTD in utils.js).
+        // Follows sortDirection, same as the primary comparison.
+        const byTimestamp = (a.timestamp || '').localeCompare(b.timestamp || '');
+        const tie = byTimestamp !== 0 ? byTimestamp : a.id.localeCompare(b.id);
+        return tie * direction;
     });
 
     return sorted;

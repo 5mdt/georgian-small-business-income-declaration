@@ -17,7 +17,12 @@ it by clicking any sortable column header.
   `currency`, `amount`, `gel`, `ytd`); `user` and `ytd` need `userMap`/
   `ytdCache` to resolve display values.
 - `sortTransactions(transactions, userMap, ytdCache, filterState)` — applies
-  the strategy for `filterState.sortColumn`, honoring `sortDirection`.
+  the strategy for `filterState.sortColumn`, honoring `sortDirection`. When
+  the strategy returns a tie (e.g. multiple transactions on the same date),
+  breaks it deterministically by `timestamp` then `id`, so equal-value rows
+  stay in a stable order matching YTD accumulation order (see
+  `precalculateAllYTD` in `src/utils.js`) instead of arbitrary storage order.
+  The tie-break follows `sortDirection` like the primary comparison.
 - `computeNextSortState(currentState, column)` — toggles direction if the
   same column is clicked again, otherwise switches column and defaults to
   descending.
@@ -37,12 +42,18 @@ headers.
 - Click "Date" header twice — sort direction toggles; click a different
   header — sorts by that column, descending by default.
 - "Clear Filters" resets all filters and sort to defaults.
+- Load demo data ([[T4G-0012]]) and toggle the Date header: Nino Beridze's
+  two 2025-01-15 rows keep a stable relative order (chronological by
+  timestamp when ascending, reverse when descending) instead of jumping
+  around.
 
 ### Unit Testing
 
 `tests/unit/filters.test.js`: default state, each filter individually and
 combined, no-match case, non-mutation, every `SORT_STRATEGIES` column,
-unknown-column fallback, `computeNextSortState` toggle/switch behavior.
+unknown-column fallback, `computeNextSortState` toggle/switch behavior,
+same-date tie-break (timestamp asc/desc, id fallback when timestamp is equal
+or missing, stability regardless of input order).
 
 ### Integration Testing
 
