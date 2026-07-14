@@ -11,8 +11,10 @@ import {
     calculateYTDForTransaction,
     buildUserLookupMap,
     createDefaultUser,
-    debounce
+    debounce,
+    compareVersions
 } from './src/utils.js';
+import { APP_VERSION } from './src/version.js';
 
 import { getFromStorage, saveToStorage, removeFromStorage } from './src/storage.js';
 import { sanitizeInput, showElement, hideElement, showError, hideError } from './src/dom.js';
@@ -161,6 +163,33 @@ function initTheme() {
 
 // Initialize theme immediately (before DOM content loads to prevent flash)
 initTheme();
+
+// ===========================
+// Update Notification
+// ===========================
+
+const VERSION_STORAGE_KEY = 't4g_appVersion';
+
+function dismissUpdateModal() {
+    hideElement(document.getElementById('updateModal'));
+    saveToStorage(VERSION_STORAGE_KEY, APP_VERSION);
+}
+
+function checkForAppUpdate() {
+    const storedVersion = getFromStorage(VERSION_STORAGE_KEY, null);
+
+    if (storedVersion === null) {
+        // First-ever visit - nothing to update from.
+        saveToStorage(VERSION_STORAGE_KEY, APP_VERSION);
+        return;
+    }
+
+    if (compareVersions(storedVersion, APP_VERSION) < 0) {
+        const versionLabel = document.getElementById('updateModalVersion');
+        if (versionLabel) versionLabel.textContent = APP_VERSION;
+        showElement(document.getElementById('updateModal'));
+    }
+}
 
 // ===========================
 // User Management
@@ -1097,6 +1126,7 @@ function setupFilterEventListeners() {
 window.onload = function () {
     loadCheckboxState();
     restoreCollapsibleStates();
+    checkForAppUpdate();
 
     const today = getTodayDate();
     const datePicker = document.getElementById('datePicker');
@@ -1144,3 +1174,5 @@ window.saveUserFromInputs = saveUserFromInputs;
 window.updateUserField = updateUserField;
 window.deleteAllUsers = deleteAllUsers;
 window.toggleSort = toggleSort;
+window.dismissUpdateModal = dismissUpdateModal;
+window.checkForAppUpdate = checkForAppUpdate;

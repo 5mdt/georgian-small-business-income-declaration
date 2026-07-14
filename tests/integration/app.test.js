@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vite
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { APP_VERSION } from '../../src/version.js';
 
 // DOM-integration tests: load the *real* index.html markup into jsdom and
 // import the real script.js against it, driving the app the way a user
@@ -371,6 +372,53 @@ describe('App integration (real index.html + script.js)', () => {
             window.exportToCSV();
 
             expect(global.alert).toHaveBeenCalledWith(expect.stringContaining('No transactions to export with current filters'));
+        });
+    });
+
+    describe('update notification', () => {
+        const isModalHidden = () => document.getElementById('updateModal').classList.contains('hidden');
+
+        // Simulate a fresh page load: the modal starts hidden in index.html,
+        // but checkForAppUpdate() only ever shows it, never re-hides it.
+        beforeEach(() => {
+            document.getElementById('updateModal').classList.add('hidden');
+        });
+
+        it('stores the current version without showing the modal on first visit', () => {
+            global.localStorage.removeItem('t4g_appVersion');
+
+            window.checkForAppUpdate();
+
+            expect(isModalHidden()).toBe(true);
+            expect(JSON.parse(global.localStorage.getItem('t4g_appVersion'))).toBe(APP_VERSION);
+        });
+
+        it('shows the modal when the stored version is older than the current version', () => {
+            global.localStorage.setItem('t4g_appVersion', JSON.stringify('0.0.1'));
+
+            window.checkForAppUpdate();
+
+            expect(isModalHidden()).toBe(false);
+            expect(document.getElementById('updateModalVersion').textContent).toBe(APP_VERSION);
+        });
+
+        it('does not show the modal when the stored version is current or newer', () => {
+            global.localStorage.setItem('t4g_appVersion', JSON.stringify(APP_VERSION));
+
+            window.checkForAppUpdate();
+
+            expect(isModalHidden()).toBe(true);
+        });
+
+        it('hides the modal and persists the current version only once "Got it" is clicked', () => {
+            global.localStorage.setItem('t4g_appVersion', JSON.stringify('0.0.1'));
+            window.checkForAppUpdate();
+            expect(isModalHidden()).toBe(false);
+
+            window.dismissUpdateModal();
+
+            expect(isModalHidden()).toBe(true);
+            expect(JSON.parse(global.localStorage.getItem('t4g_appVersion'))).toBe(APP_VERSION);
         });
     });
 });

@@ -4,7 +4,8 @@ import {
     generateTransactionId,
     buildUserLookupMap,
     createDefaultUser,
-    debounce
+    debounce,
+    compareVersions
 } from '../../src/utils.js';
 
 describe('ID Generation', () => {
@@ -205,5 +206,28 @@ describe('Debounce Function', () => {
         expect(mockFn).toHaveBeenCalledTimes(2);
 
         vi.useRealTimers();
+    });
+});
+
+describe('Version Comparison', () => {
+    it('returns 0 for equal versions', () => {
+        expect(compareVersions('1.2.0', '1.2.0')).toBe(0);
+    });
+
+    it('returns negative when the first version is older', () => {
+        expect(compareVersions('1.1.0', '1.2.0')).toBeLessThan(0);
+    });
+
+    it('returns positive when the first version is newer', () => {
+        expect(compareVersions('1.3.0', '1.2.0')).toBeGreaterThan(0);
+    });
+
+    it('treats missing segments as 0', () => {
+        expect(compareVersions('1.2', '1.2.0')).toBe(0);
+        expect(compareVersions('1.2.1', '1.2')).toBeGreaterThan(0);
+    });
+
+    it('compares multi-digit segments numerically, not lexicographically', () => {
+        expect(compareVersions('1.10.0', '1.2.0')).toBeGreaterThan(0);
     });
 });

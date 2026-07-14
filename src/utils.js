@@ -369,3 +369,21 @@ export function debounce(func, wait) {
         timeout = setTimeout(later, wait);
     };
 }
+
+/**
+ * Compares two dotted-numeric version strings (e.g. '1.10.0' vs '1.2.0').
+ * Missing segments are treated as 0.
+ * @param {string} a - First version
+ * @param {string} b - Second version
+ * @returns {number} Negative if a < b, positive if a > b, 0 if equal
+ */
+export function compareVersions(a, b) {
+    const partsA = a.split('.').map(Number);
+    const partsB = b.split('.').map(Number);
+    const length = Math.max(partsA.length, partsB.length);
+    for (let i = 0; i < length; i++) {
+        const diff = (partsA[i] || 0) - (partsB[i] || 0);
+        if (diff !== 0) return diff;
+    }
+    return 0;
+}

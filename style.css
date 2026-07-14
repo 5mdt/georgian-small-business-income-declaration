@@ -1045,3 +1045,36 @@ tfoot td {
   color: var(--accent-primary-hover);
   text-decoration: underline;
 }
+
+/* ===========================
+   Update Notification Modal
+   =========================== */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modal-overlay.hidden {
+  display: none;
+}
+
+.modal {
+  max-width: 420px;
+  width: calc(100% - var(--spacing-lg) * 2);
+  padding: var(--spacing-lg);
+}
+
+.modal h3 {
+  margin-top: 0;
+}
+
+.modal .btn-group {
+  margin-bottom: 0;
+  justify-content: flex-end;
+}

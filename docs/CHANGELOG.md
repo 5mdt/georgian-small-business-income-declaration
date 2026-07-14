@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.2.0 2026-07-14
+
+- T4G-0018: Added an in-app update notification — on load, compares the
+  app version against the one stored in `localStorage` and shows a modal
+  with a changelog link if the stored version is older. First-ever visit
+  stores the current version silently; the modal only clears once "Got it"
+  is clicked.
+
 ## v1.1.0 2026-07-14
 
 - T4G-0009: Fixed inconsistent sort order for same-date transactions —
