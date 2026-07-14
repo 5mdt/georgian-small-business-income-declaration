@@ -208,8 +208,7 @@
                             <button class="btn btn-secondary btn-sm" onclick="openExportModal()">⬇ Export</button>
                             <button class="btn btn-secondary btn-sm" onclick="openImportModal()">⬆ Import</button>
                             <button class="btn btn-secondary btn-sm" onclick="loadDemoData()">📊 Load Demo Data</button>
-                            <button class="btn btn-danger btn-sm" onclick="clearAllTransactions()">Clear All</button>
-                            <button class="btn btn-secondary btn-sm" onclick="clearRateCache()">Clear Cache</button>
+                            <button class="btn btn-danger btn-sm" onclick="openClearDataModal()">🧹 Clear data…</button>
                         </div>
 
                         <!-- Transaction Table -->
@@ -312,6 +311,52 @@
                 <button type="button" class="btn btn-secondary btn-sm" onclick="closeImportModal()">Close</button>
             </div>
             <input type="file" id="importFileInput" accept=".csv,.json" class="hidden" onchange="onImportFileChosen()">
+        </div>
+    </div>
+
+    <div id="clearDataModal" class="modal-overlay modal-overlay-top hidden">
+        <div class="modal card">
+            <h3>Clear data</h3>
+            <p>Choose what to clear. This cannot be undone.</p>
+
+            <h4 class="zone-header zone-header-green">Green zone</h4>
+            <div class="checkbox-group">
+                <input type="checkbox" id="clearRateCacheCheckbox" onchange="onClearSelectionChange()">
+                <label for="clearRateCacheCheckbox">Cached exchange rates</label>
+            </div>
+            <div class="checkbox-group">
+                <input type="checkbox" id="clearSettingsCheckbox" onchange="onClearSelectionChange()">
+                <label for="clearSettingsCheckbox">Settings &amp; preferences (theme, layout)</label>
+            </div>
+
+            <h4 class="zone-header zone-header-warning">Warning zone</h4>
+            <div class="checkbox-group">
+                <input type="checkbox" id="clearRecalculateCheckbox" disabled>
+                <label for="clearRecalculateCheckbox">Clear exchange rates and recalculate conversion (not yet implemented)</label>
+            </div>
+
+            <h4 class="zone-header zone-header-critical">Critical zone!</h4>
+            <div class="checkbox-group">
+                <input type="checkbox" id="clearTransactionsCheckbox" onchange="onClearSelectionChange()">
+                <label for="clearTransactionsCheckbox">Transactions</label>
+            </div>
+            <div class="checkbox-group">
+                <input type="checkbox" id="clearUsersCheckbox" onchange="onClearSelectionChange()">
+                <label for="clearUsersCheckbox">Users (resets to a single default user)</label>
+            </div>
+            <div class="checkbox-group">
+                <input type="checkbox" id="clearEverythingCheckbox" onchange="toggleClearEverything()">
+                <label for="clearEverythingCheckbox">Reset everything (factory reset)</label>
+            </div>
+            <p id="clearDataWarning" class="modal-warning hidden">
+                Clearing users also removes all transactions, since every
+                transaction belongs to a user.
+            </p>
+            <div class="btn-group">
+                <button type="button" class="btn btn-secondary btn-sm btn-push-left" onclick="exportBackupJSON()">💾 Make a backup</button>
+                <button type="button" class="btn btn-danger btn-sm" id="clearDataConfirmButton" onclick="confirmClearData()" disabled>Clear selected</button>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="closeClearDataModal()">Cancel</button>
+            </div>
         </div>
     </div>
 

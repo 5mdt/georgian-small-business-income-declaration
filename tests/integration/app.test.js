@@ -177,24 +177,164 @@ describe('App integration (real index.html + script.js)', () => {
             expect(remaining.find(t => t.id === txId)).toBeUndefined();
         });
 
-        it('asks for confirmation before clearing all transactions, and honors "cancel"', async () => {
+    });
+
+    describe('clear data modal', () => {
+        function checkboxIds() {
+            return {
+                transactions: document.getElementById('clearTransactionsCheckbox'),
+                users: document.getElementById('clearUsersCheckbox'),
+                rateCache: document.getElementById('clearRateCacheCheckbox'),
+                settings: document.getElementById('clearSettingsCheckbox'),
+                everything: document.getElementById('clearEverythingCheckbox'),
+                recalculate: document.getElementById('clearRecalculateCheckbox'),
+                confirmButton: document.getElementById('clearDataConfirmButton')
+            };
+        }
+
+        it('opens with every checkbox unchecked and the confirm button disabled', () => {
+            const boxes = checkboxIds();
+            boxes.transactions.checked = true; // dirty it first
+
+            window.openClearDataModal();
+
+            expect(boxes.transactions.checked).toBe(false);
+            expect(boxes.users.checked).toBe(false);
+            expect(boxes.rateCache.checked).toBe(false);
+            expect(boxes.settings.checked).toBe(false);
+            expect(boxes.everything.checked).toBe(false);
+            expect(boxes.confirmButton.disabled).toBe(true);
+        });
+
+        it('renders the recalculate-conversion checkbox as a disabled placeholder', () => {
+            expect(checkboxIds().recalculate.disabled).toBe(true);
+        });
+
+        it('shows a "Make a backup" button wired to exportBackupJSON', () => {
+            // jsdom doesn't resolve inline onclick="…" handlers against
+            // module-scope globals reliably (a real .click() throws
+            // "exportBackupJSON is not defined" even though window.
+            // exportBackupJSON exists - see script.js's window.* exports),
+            // so this checks the markup wiring directly rather than
+            // simulating a click. exportBackupJSON()'s own download
+            // behavior is already covered by the "Backup & Restore
+            // modals" tests below; it's shared with the Export modal and
+            // has no knowledge of this modal, so it can't affect it.
+            window.openClearDataModal();
+            const backupButton = document.querySelector('#clearDataModal button[onclick="exportBackupJSON()"]');
+
+            expect(backupButton).toBeTruthy();
+            expect(backupButton.textContent).toContain('Make a backup');
+        });
+
+        it('enables the confirm button once a checkbox is selected', () => {
+            window.openClearDataModal();
+            const boxes = checkboxIds();
+
+            boxes.transactions.checked = true;
+            window.onClearSelectionChange();
+
+            expect(boxes.confirmButton.disabled).toBe(false);
+        });
+
+        it('checking "Reset everything" checks and disables the individual checkboxes', () => {
+            window.openClearDataModal();
+            const boxes = checkboxIds();
+
+            boxes.everything.checked = true;
+            window.toggleClearEverything();
+
+            expect(boxes.transactions.checked).toBe(true);
+            expect(boxes.users.checked).toBe(true);
+            expect(boxes.rateCache.checked).toBe(true);
+            expect(boxes.settings.checked).toBe(true);
+            expect(boxes.transactions.disabled).toBe(true);
+            expect(boxes.confirmButton.disabled).toBe(false);
+
+            boxes.everything.checked = false;
+            window.toggleClearEverything();
+
+            expect(boxes.transactions.disabled).toBe(false);
+        });
+
+        it('asks for confirmation before clearing selected data, and honors "cancel"', async () => {
             fillConversionForm({ amount: '10', addAsTransaction: true });
             await clickConvert();
 
+            window.openClearDataModal();
+            checkboxIds().transactions.checked = true;
+
             global.confirm.mockReturnValue(false);
-            window.clearAllTransactions();
+            window.confirmClearData();
 
             expect(JSON.parse(global.localStorage.getItem(STORAGE_KEYS.transactions)).length).toBeGreaterThan(0);
         });
 
-        it('clears all transactions on confirmation', async () => {
+        it('clears only the selected category (transactions) on confirmation, leaving users intact', async () => {
             fillConversionForm({ amount: '10', addAsTransaction: true });
             await clickConvert();
 
+            window.openClearDataModal();
+            checkboxIds().transactions.checked = true;
+
             global.confirm.mockReturnValue(true);
-            window.clearAllTransactions();
+            window.confirmClearData();
 
             expect(document.getElementById('transactionList').textContent).toMatch(/No transactions recorded yet/i);
+            expect(JSON.parse(global.localStorage.getItem(STORAGE_KEYS.users)).length).toBeGreaterThan(0);
+        });
+
+        it('clearing users also cascades to remove transactions and resets to a single default user', async () => {
+            fillConversionForm({ amount: '10', addAsTransaction: true });
+            await clickConvert();
+
+            window.openClearDataModal();
+            checkboxIds().users.checked = true;
+
+            global.confirm.mockReturnValue(true);
+            window.confirmClearData();
+
+            expect(JSON.parse(global.localStorage.getItem(STORAGE_KEYS.users))).toEqual([
+                { id: 'user', name: 'user', taxpayerId: '' }
+            ]);
+            expect(document.getElementById('transactionList').textContent).toMatch(/No transactions recorded yet/i);
+        });
+
+        it('clears only cached exchange rates', async () => {
+            fillConversionForm({ amount: '10', addAsTransaction: true });
+            await clickConvert();
+
+            expect(global.localStorage.getItem(`${CURRENCY_RATE_KEY_PREFIX}2025-01-15`)).not.toBeNull();
+
+            window.openClearDataModal();
+            checkboxIds().rateCache.checked = true;
+
+            global.confirm.mockReturnValue(true);
+            window.confirmClearData();
+
+            expect(global.localStorage.getItem(`${CURRENCY_RATE_KEY_PREFIX}2025-01-15`)).toBeNull();
+            expect(JSON.parse(global.localStorage.getItem(STORAGE_KEYS.transactions)).length).toBeGreaterThan(0);
+        });
+
+        it('"Reset everything" wipes every t4g_ key', async () => {
+            fillConversionForm({ amount: '10', addAsTransaction: true });
+            await clickConvert();
+
+            window.openClearDataModal();
+            const boxes = checkboxIds();
+            boxes.everything.checked = true;
+            window.toggleClearEverything();
+
+            global.confirm.mockReturnValue(true);
+            window.confirmClearData();
+
+            expect(global.localStorage.getItem(STORAGE_KEYS.transactions)).toBeNull();
+            expect(global.localStorage.getItem(`${CURRENCY_RATE_KEY_PREFIX}2025-01-15`)).toBeNull();
+            // triggerDataRefresh() -> renderUserList() -> loadUsers() re-seeds
+            // and persists a default user as soon as it's next read.
+            expect(JSON.parse(global.localStorage.getItem(STORAGE_KEYS.users))).toEqual([
+                { id: 'user', name: 'user', taxpayerId: '' }
+            ]);
         });
     });
 

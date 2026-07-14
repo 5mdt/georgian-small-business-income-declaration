@@ -97,7 +97,8 @@ Both keys were unprefixed (`users`, `transactions`) before the schema `1` →
 Full key inventory and persistence behavior: [[T4G-0013]]. Rate caching:
 [[T4G-0002]]. YTD calculation: [[T4G-0008]]. User deletion protection:
 [[T4G-0006]]. Backup & restore (CSV/JSON import/export): [[T4G-0020]]. Demo data:
-[[T4G-0012]]. Clearing/resetting data: [[T4G-0014]].
+[[T4G-0012]]. Clearing/resetting data ("Clear data…" modal, `src/clear.js`
+owns the actual key-clearing logic): [[T4G-0014]].
 
 ## Gotchas
 

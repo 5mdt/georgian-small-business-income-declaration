@@ -15,7 +15,7 @@ import {
     compareVersions
 } from './src/utils.js';
 import { APP_VERSION, DATA_SCHEMA_VERSION } from './src/version.js';
-import { STORAGE_KEYS, CURRENCY_RATE_KEY_PREFIX, COLLAPSIBLE_KEY_PREFIX } from './src/keys.js';
+import { STORAGE_KEYS, COLLAPSIBLE_KEY_PREFIX } from './src/keys.js';
 import { runMigrations } from './src/migrations.js';
 
 import { getFromStorage, saveToStorage, removeFromStorage, getAllStorageKeys } from './src/storage.js';
@@ -59,6 +59,7 @@ import {
     mergeBackupData,
     selectBackupKeys
 } from './src/backup.js';
+import { clearData } from './src/clear.js';
 
 // ===========================
 // Theme Management
@@ -406,27 +407,6 @@ function updateTransactionComment(id, newComment) {
         renderTransactionList();
     }
     return success;
-}
-
-function clearAllTransactions() {
-    if (!confirm('Are you sure you want to delete all transactions?')) return false;
-
-    const success = removeFromStorage(STORAGE_KEYS.transactions);
-    if (success) {
-        renderTransactionList();
-    }
-    return success;
-}
-
-function clearRateCache() {
-    if (!confirm('Are you sure you want to clear all cached exchange rates?')) return false;
-
-    const keys = Object.keys(localStorage);
-    const rateKeys = keys.filter(key => key.startsWith(CURRENCY_RATE_KEY_PREFIX));
-
-    rateKeys.forEach(key => removeFromStorage(key));
-    alert('Exchange rate cache cleared successfully.');
-    return true;
 }
 
 function saveCheckboxState() {
@@ -1133,7 +1113,7 @@ function loadDemoData() {
     // Check if transactions already exist
     const existingTransactions = loadTransactions();
     if (existingTransactions.length > 0) {
-        alert('Error: Cannot load demo data. You already have saved transactions.\n\nPlease use "Clear All" to remove existing transactions first, or use "Import" to add more data.');
+        alert('Error: Cannot load demo data. You already have saved transactions.\n\nPlease use "Clear data…" to remove existing transactions first, or use "Import" to add more data.');
         return;
     }
 
@@ -1156,6 +1136,95 @@ function loadDemoData() {
         .catch(error => {
             alert(`Failed to load demo data: ${error.message}`);
         });
+}
+
+// ===========================
+// Clear Data Modal
+// ===========================
+// clearData is imported from src/clear.js
+
+const CLEAR_CHECKBOX_IDS = [
+    'clearTransactionsCheckbox',
+    'clearUsersCheckbox',
+    'clearRateCacheCheckbox',
+    'clearSettingsCheckbox'
+];
+
+function openClearDataModal() {
+    [...CLEAR_CHECKBOX_IDS, 'clearEverythingCheckbox'].forEach(id => {
+        document.getElementById(id).checked = false;
+    });
+    setClearCheckboxesDisabled(false);
+    hideElement(document.getElementById('clearDataWarning'));
+    document.getElementById('clearDataConfirmButton').disabled = true;
+    showElement(document.getElementById('clearDataModal'));
+}
+
+function closeClearDataModal() {
+    hideElement(document.getElementById('clearDataModal'));
+}
+
+function setClearCheckboxesDisabled(disabled) {
+    CLEAR_CHECKBOX_IDS.forEach(id => {
+        document.getElementById(id).disabled = disabled;
+    });
+}
+
+// "Reset everything" implies every other category, so checking it locks the
+// individual checkboxes on (and re-enables them if unchecked again).
+function toggleClearEverything() {
+    const everything = document.getElementById('clearEverythingCheckbox').checked;
+    setClearCheckboxesDisabled(everything);
+    if (everything) {
+        CLEAR_CHECKBOX_IDS.forEach(id => {
+            document.getElementById(id).checked = true;
+        });
+    }
+    onClearSelectionChange();
+}
+
+function onClearSelectionChange() {
+    const usersChecked = document.getElementById('clearUsersCheckbox').checked;
+    const everythingChecked = document.getElementById('clearEverythingCheckbox').checked;
+    const warning = document.getElementById('clearDataWarning');
+    if (usersChecked || everythingChecked) {
+        showElement(warning);
+    } else {
+        hideElement(warning);
+    }
+
+    const anySelected = [...CLEAR_CHECKBOX_IDS, 'clearEverythingCheckbox']
+        .some(id => document.getElementById(id).checked);
+    document.getElementById('clearDataConfirmButton').disabled = !anySelected;
+}
+
+function confirmClearData() {
+    const selection = {
+        transactions: document.getElementById('clearTransactionsCheckbox').checked,
+        users: document.getElementById('clearUsersCheckbox').checked,
+        rateCache: document.getElementById('clearRateCacheCheckbox').checked,
+        settings: document.getElementById('clearSettingsCheckbox').checked,
+        everything: document.getElementById('clearEverythingCheckbox').checked
+    };
+
+    if (!confirm('Are you sure you want to clear the selected data? This cannot be undone.')) {
+        return false;
+    }
+
+    const { cleared } = clearData(selection);
+
+    // Settings changes (theme, add-transaction checkbox) live in the DOM,
+    // not just storage - re-apply the (now-default) values so the reset is
+    // visible immediately instead of only on next reload.
+    if (selection.everything || selection.settings) {
+        applyTheme(getThemePreference());
+        loadCheckboxState();
+    }
+
+    triggerDataRefresh();
+    closeClearDataModal();
+    alert(cleared.length > 0 ? `Cleared: ${cleared.join(', ')}.` : 'Nothing was selected.');
+    return true;
 }
 
 // ===========================
@@ -1486,8 +1555,6 @@ window.addNewUser = addNewUser;
 window.clearFilters = clearFilters;
 window.exportToCSV = exportToCSV;
 window.loadDemoData = loadDemoData;
-window.clearAllTransactions = clearAllTransactions;
-window.clearRateCache = clearRateCache;
 window.importFromCSV = importFromCSV;
 window.deleteUser = deleteUser;
 window.deleteTransaction = deleteTransaction;
@@ -1510,3 +1577,8 @@ window.exportBackupJSON = exportBackupJSON;
 window.handleImportFile = handleImportFile;
 window.onImportFileChosen = onImportFileChosen;
 window.startImport = startImport;
+window.openClearDataModal = openClearDataModal;
+window.closeClearDataModal = closeClearDataModal;
+window.toggleClearEverything = toggleClearEverything;
+window.onClearSelectionChange = onClearSelectionChange;
+window.confirmClearData = confirmClearData;

@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.6.0 2026-07-14
+
+- T4G-0014: Replaced the misleadingly-named "Clear All" (which only ever
+  deleted transactions) and "Clear Cache" toolbar buttons with a single
+  "🧹 Clear data…" modal offering independent checkboxes, grouped into a
+  "Green zone" (cached exchange rates, settings/preferences), a "Warning
+  zone" (a disabled "Clear exchange rates and recalculate conversion"
+  placeholder for a not-yet-implemented feature), and a "Critical zone!"
+  (transactions, users, "Reset everything" factory reset) — plus a
+  "💾 Make a backup" button to download a full JSON backup before clearing
+  anything. New `src/clear.js` `clearData()` orchestrates the actual
+  clearing.
+
 ## v1.5.1 2026-07-14
 
 - T4G-0006: Fixed `canDeleteUser` refusing to delete the default `user`

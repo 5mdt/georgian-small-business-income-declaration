@@ -49,6 +49,17 @@
   --error: var(--nord-aurora-red);
   --info: var(--nord-frost-2);
 
+  /* Colored text on --bg-card (zone headers, .modal-warning) - the raw
+     aurora hues above are tuned for white-on-color buttons, not
+     color-on-card text; used directly as text on a white --bg-card they
+     fall well under WCAG AA (green 2.0:1, warning 1.6:1, critical 4.1:1
+     vs the 4.5:1 minimum for sub-large text). These are darkened
+     equivalents that clear 4.5:1 on white while keeping the same hue
+     family. */
+  --success-text: #3c6b2f;
+  --warning-text: #7d5f00;
+  --error-text: #a3253a;
+
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
@@ -87,6 +98,14 @@
     --accent-primary-hover: var(--nord-frost-2);
     --accent-secondary: var(--nord-aurora-orange);
 
+    /* green/warning aurora hues already clear 4.5:1 on this dark
+       --bg-card (4.9:1, 6.4:1); the raw aurora red doesn't (2.5:1), so
+       it gets a brighter red instead - see the --success-text/
+       --warning-text/--error-text comment above. */
+    --success-text: var(--nord-aurora-green);
+    --warning-text: var(--nord-aurora-yellow);
+    --error-text: #eb98a0;
+
     --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
     --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
@@ -111,6 +130,10 @@ html[data-theme="dark"] {
   --accent-primary: var(--nord-frost-3);
   --accent-primary-hover: var(--nord-frost-2);
   --accent-secondary: var(--nord-aurora-orange);
+
+  --success-text: var(--nord-aurora-green);
+  --warning-text: var(--nord-aurora-yellow);
+  --error-text: #eb98a0;
 
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
@@ -140,6 +163,10 @@ html[data-theme="light"] {
   --warning: var(--nord-aurora-yellow);
   --error: var(--nord-aurora-red);
   --info: var(--nord-frost-2);
+
+  --success-text: #3c6b2f;
+  --warning-text: #7d5f00;
+  --error-text: #a3253a;
 
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
@@ -590,6 +617,11 @@ textarea:disabled {
 .checkbox-group label {
   margin: 0;
   font-weight: normal;
+}
+
+.checkbox-group input[type="checkbox"]:disabled + label {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 /* ===========================
@@ -1079,6 +1111,13 @@ tfoot td {
   justify-content: flex-end;
 }
 
+/* Pins a single button to the opposite end of a flex-end .btn-group -
+   e.g. a "Make a backup" action in the bottom-left corner of a modal
+   footer, away from the confirm/cancel buttons on the right. */
+.btn-push-left {
+  margin-right: auto;
+}
+
 /* Export/Import modals can be opened from within the migration modal
    (T4G-0019/T4G-0020), so they need to layer on top of it. */
 .modal-overlay-top {
@@ -1090,9 +1129,33 @@ tfoot td {
   align-items: stretch;
 }
 
+/* --warning-text rather than --warning: --warning/--success/--error are
+   tuned for white text on a colored button background, and read as low
+   contrast (as low as 1.6:1) when used as colored text on --bg-card
+   instead. --success-text/--warning-text/--error-text (below) are
+   per-theme WCAG-AA-contrast (>=4.5:1) variants of the same hue family -
+   see their definitions in the theme variables section above. */
 .modal-warning {
-  color: var(--warning);
+  color: var(--warning-text);
   font-size: 0.9em;
+}
+
+/* Clear data modal's risk-tier headers (Green/Warning/Critical zone). */
+.zone-header {
+  margin: var(--spacing-md) 0 var(--spacing-xs);
+  font-size: 0.9375rem;
+}
+
+.zone-header-green {
+  color: var(--success-text);
+}
+
+.zone-header-warning {
+  color: var(--warning-text);
+}
+
+.zone-header-critical {
+  color: var(--error-text);
 }
 
 #importSelectedFileName {

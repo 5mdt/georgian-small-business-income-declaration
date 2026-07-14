@@ -1,7 +1,3 @@
-# Bugs
-
-- Clear All button deletes only transactions. Instead of Clear Cache, Clear All buttons in panel make a separate modal window with checkboxes, what to clear granually
-
 # Features to add
 
 - Make YTD income field highlighted only for the last transaction in month for each user (CSS class).
@@ -11,8 +7,7 @@
 - Local storage key prefix for data.
 - Add pop-up hints on buttons.
 - Hide/grey out "Load Demo Data" button when transactions exist.
-- Suggest a backup before wiping all data.
-- Bundle all JS, HTML, CSS into one request.
+- Bundle all JS, HTML, CSS into one request, minifying code and removing all comments for better compression.
 - Move user management block to sidebar.
 - Inform if the currency API is limited/unavailable.
 - Option to save a transaction even if the exchange rate can't be retrieved.
@@ -22,7 +17,11 @@
 - Script to generate screenshot using mock data in playwright. Include both light and dark theme on screenshot
 - Import full backup validation first
 - Import full backup dry-run
-- Safe localstorage data. Use html-codes for quotes and other special charecters?
+- Safer localstorage data. Use html-codes for quotes and other special charecters? Add not-safe charecters in demo.
 - Add changelog modal window, that gathers info from CHANGELOG.md
 - Add diff changelog to "app version updated window"
 - Make Toggle user list similar togglable as disclaimer and how it works, but collapsed by default
+- Add version info in UI
+- Replace transaction comment input with multiline label and edit button with modal
+- Make modal windows close on click outside the window, Escape button and maybe on android's "back" button too?
+- Add donate button
