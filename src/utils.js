@@ -217,6 +217,39 @@ export function precalculateAllYTD(transactions) {
     return ytdCache;
 }
 
+// Returns true if `a` sorts after `b` under the same deterministic
+// tie-break used by `sortTransactions` (src/filters.js): date, then
+// timestamp, then id.
+function isLaterTransaction(a, b) {
+    const byDate = a.date.localeCompare(b.date);
+    if (byDate !== 0) return byDate > 0;
+    const byTimestamp = (a.timestamp || '').localeCompare(b.timestamp || '');
+    if (byTimestamp !== 0) return byTimestamp > 0;
+    return a.id.localeCompare(b.id) > 0;
+}
+
+/**
+ * Finds, for each user and calendar month, the id of that month's last
+ * transaction (by date, tie-broken by timestamp then id - same order as
+ * sortTransactions). Used to highlight the month-end YTD Income value.
+ * @param {Array} transactions - All transactions
+ * @returns {Set<string>} Ids of the last transaction in each userId+month group
+ */
+export function findLastMonthTransactionIds(transactions) {
+    const validTransactions = transactions.filter(tx => validateTransaction(tx));
+    const lastByGroup = new Map();
+
+    for (const tx of validTransactions) {
+        const key = `${tx.userId}_${tx.date.slice(0, 7)}`;
+        const current = lastByGroup.get(key);
+        if (!current || isLaterTransaction(tx, current)) {
+            lastByGroup.set(key, tx);
+        }
+    }
+
+    return new Set([...lastByGroup.values()].map(tx => tx.id));
+}
+
 /**
  * Calculates YTD for a single transaction
  * @param {Object} transaction - Transaction object

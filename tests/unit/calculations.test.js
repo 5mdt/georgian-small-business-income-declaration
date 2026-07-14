@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import {
     convertToGEL,
     calculateYTDForTransaction,
-    precalculateAllYTD
+    precalculateAllYTD,
+    findLastMonthTransactionIds
 } from '../../src/utils.js';
 
 describe('Currency Conversion', () => {
@@ -361,5 +362,103 @@ describe('YTD Precalculation - Optimized', () => {
         const ytdCache = precalculateAllYTD([]);
         expect(ytdCache).toBeInstanceOf(Map);
         expect(ytdCache.size).toBe(0);
+    });
+});
+
+describe('Last-of-month highlight - findLastMonthTransactionIds', () => {
+    it('flags the only transaction in a month', () => {
+        const transactions = [
+            { id: 'tx1', userId: 'user1', date: '2025-01-15', currencyCode: 'USD', amount: 100, convertedGEL: 287.5, timestamp: '1000' }
+        ];
+
+        const ids = findLastMonthTransactionIds(transactions);
+
+        expect(ids).toBeInstanceOf(Set);
+        expect(ids.has('tx1')).toBe(true);
+        expect(ids.size).toBe(1);
+    });
+
+    it('flags only the latest date within a month, not earlier ones', () => {
+        const transactions = [
+            { id: 'tx1', userId: 'user1', date: '2025-01-05', currencyCode: 'USD', amount: 100, convertedGEL: 100, timestamp: '1000' },
+            { id: 'tx2', userId: 'user1', date: '2025-01-15', currencyCode: 'USD', amount: 100, convertedGEL: 100, timestamp: '2000' },
+            { id: 'tx3', userId: 'user1', date: '2025-01-28', currencyCode: 'USD', amount: 100, convertedGEL: 100, timestamp: '3000' }
+        ];
+
+        const ids = findLastMonthTransactionIds(transactions);
+
+        expect([...ids]).toEqual(['tx3']);
+    });
+
+    // Same tie-break as sortTransactions (src/filters.js): date, then
+    // timestamp, then id - see the "fix sorting bug" commit.
+    it('breaks a same-date tie by timestamp', () => {
+        const transactions = [
+            { id: 'tx1', userId: 'user1', date: '2025-01-15', currencyCode: 'USD', amount: 100, convertedGEL: 100, timestamp: '2025-01-15T09:00:00.000Z' },
+            { id: 'tx2', userId: 'user1', date: '2025-01-15', currencyCode: 'EUR', amount: 50, convertedGEL: 155, timestamp: '2025-01-15T16:45:00.000Z' }
+        ];
+
+        const ids = findLastMonthTransactionIds(transactions);
+
+        expect([...ids]).toEqual(['tx2']);
+    });
+
+    it('falls back to id when timestamps are equal or missing', () => {
+        const transactions = [
+            { id: 'tb', userId: 'user1', date: '2025-01-15', currencyCode: 'USD', amount: 100, convertedGEL: 100 },
+            { id: 'ta', userId: 'user1', date: '2025-01-15', currencyCode: 'EUR', amount: 50, convertedGEL: 155 }
+        ];
+
+        const ids = findLastMonthTransactionIds(transactions);
+
+        expect([...ids]).toEqual(['tb']);
+    });
+
+    it('tracks each user independently within the same month', () => {
+        const transactions = [
+            { id: 'tx1', userId: 'user1', date: '2025-01-05', currencyCode: 'USD', amount: 100, convertedGEL: 100, timestamp: '1000' },
+            { id: 'tx2', userId: 'user1', date: '2025-01-20', currencyCode: 'USD', amount: 100, convertedGEL: 100, timestamp: '2000' },
+            { id: 'tx3', userId: 'user2', date: '2025-01-10', currencyCode: 'USD', amount: 100, convertedGEL: 100, timestamp: '3000' }
+        ];
+
+        const ids = findLastMonthTransactionIds(transactions);
+
+        expect(ids.has('tx2')).toBe(true); // user1's last in January
+        expect(ids.has('tx3')).toBe(true); // user2's only transaction in January
+        expect(ids.has('tx1')).toBe(false);
+        expect(ids.size).toBe(2);
+    });
+
+    it('tracks each calendar month independently, including across years', () => {
+        const transactions = [
+            { id: 'tx1', userId: 'user1', date: '2024-01-10', currencyCode: 'USD', amount: 100, convertedGEL: 100, timestamp: '1000' },
+            { id: 'tx2', userId: 'user1', date: '2025-01-10', currencyCode: 'USD', amount: 100, convertedGEL: 100, timestamp: '2000' },
+            { id: 'tx3', userId: 'user1', date: '2025-02-10', currencyCode: 'USD', amount: 100, convertedGEL: 100, timestamp: '3000' }
+        ];
+
+        const ids = findLastMonthTransactionIds(transactions);
+
+        // Same month number (January) in two different years is two groups.
+        expect(ids.has('tx1')).toBe(true);
+        expect(ids.has('tx2')).toBe(true);
+        expect(ids.has('tx3')).toBe(true);
+        expect(ids.size).toBe(3);
+    });
+
+    it('skips invalid transactions', () => {
+        const transactions = [
+            { id: 'tx1', userId: 'user1', date: '2025-01-15', currencyCode: 'USD', amount: 100, convertedGEL: 100, timestamp: '1000' },
+            { id: 'invalid', userId: 'user1' }
+        ];
+
+        const ids = findLastMonthTransactionIds(transactions);
+
+        expect([...ids]).toEqual(['tx1']);
+    });
+
+    it('returns an empty set for an empty transaction list', () => {
+        const ids = findLastMonthTransactionIds([]);
+        expect(ids).toBeInstanceOf(Set);
+        expect(ids.size).toBe(0);
     });
 });

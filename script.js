@@ -9,6 +9,7 @@ import {
     convertToGEL,
     precalculateAllYTD,
     calculateYTDForTransaction,
+    findLastMonthTransactionIds,
     buildUserLookupMap,
     createDefaultUser,
     debounce,
@@ -741,13 +742,15 @@ function buildTransactionTableHeader() {
     `;
 }
 
-function buildTransactionTableRow(transaction, userMap, ytdCache) {
+function buildTransactionTableRow(transaction, userMap, ytdCache, lastMonthIds) {
     const user = userMap.get(transaction.userId);
     const userName = user ? user.name : 'Unknown';
     const ytdIncome = ytdCache.get(transaction.id) || 0;
     const currencySymbol = getCurrencySymbol(transaction.currencyCode);
     const commentId = `comment-${transaction.id}`;
     const rate = (transaction.rate / transaction.quantity).toFixed(4);
+    const ytdText = `₾ ${formatCurrency(ytdIncome)}`;
+    const ytdCell = lastMonthIds.has(transaction.id) ? `<strong>${ytdText}</strong>` : ytdText;
 
     return `
         <tr>
@@ -757,7 +760,7 @@ function buildTransactionTableRow(transaction, userMap, ytdCache) {
             <td>${currencySymbol} ${formatCurrency(transaction.amount)}</td>
             <td>${rate}</td>
             <td>₾ ${formatCurrency(transaction.convertedGEL)}</td>
-            <td><strong>₾ ${formatCurrency(ytdIncome)}</strong></td>
+            <td>${ytdCell}</td>
             <td>
                 <input type="text"
                         id="${commentId}"
@@ -784,9 +787,9 @@ function buildTransactionTableFooter(totalGEL) {
     `;
 }
 
-function buildTransactionTable(transactions, userMap, ytdCache, filterStatus) {
+function buildTransactionTable(transactions, userMap, ytdCache, filterStatus, lastMonthIds) {
     const header = buildTransactionTableHeader();
-    const rows = transactions.map(t => buildTransactionTableRow(t, userMap, ytdCache)).join('');
+    const rows = transactions.map(t => buildTransactionTableRow(t, userMap, ytdCache, lastMonthIds)).join('');
     const totalGEL = transactions.reduce((sum, t) => sum + t.convertedGEL, 0);
     const footer = buildTransactionTableFooter(totalGEL);
 
@@ -814,12 +817,13 @@ function renderTransactionList() {
     const users = loadUsers();
     const userMap = buildUserLookupMap(users);
     const ytdCache = precalculateAllYTD(allTransactions);
+    const lastMonthIds = findLastMonthTransactionIds(allTransactions);
 
     let transactions = applyFilters(allTransactions, filterState);
     transactions = sortTransactions(transactions, userMap, ytdCache, filterState);
 
     const filterStatus = `Showing ${transactions.length} of ${allTransactions.length} transactions`;
-    const tableHTML = buildTransactionTable(transactions, userMap, ytdCache, filterStatus);
+    const tableHTML = buildTransactionTable(transactions, userMap, ytdCache, filterStatus, lastMonthIds);
 
     transactionListDiv.innerHTML = tableHTML;
 }

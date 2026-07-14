@@ -22,8 +22,22 @@ the same calendar year, up to and including that transaction.
   **by id** (not by re-comparing date+timestamp, which misattributes totals
   when two transactions share both).
 
-Both are consumed by `script.js` (`renderTransactionList`, `exportToCSV`)
-and rendered as `<strong>₾ {ytd}</strong>` in the transaction table.
+Both are consumed by `script.js` (`renderTransactionList`, `exportToCSV`).
+
+### Month-end bolding
+
+Only the YTD Income value of each user's **last transaction in a
+calendar month** is rendered as `<strong>₾ {ytd}</strong>`; every other
+row's YTD value is plain text. `findLastMonthTransactionIds(transactions)`
+(`src/utils.js`) returns a `Set` of transaction ids — one per
+`${userId}_${YYYY-MM}` group, the transaction with the latest `date` in
+that group. Ties are broken by `timestamp` then `id`, matching
+`sortTransactions`'s tie-break (`src/filters.js`) so the bolded row
+agrees with the table's own sort order. Computed in `renderTransactionList`
+over **all** transactions (not the filtered/sorted subset), so it reflects
+the true month-end transaction regardless of active filters.
+`buildTransactionTableRow` wraps the YTD cell in `<strong>` only when the
+row's id is in the set.
 
 ## Testing
 
@@ -34,6 +48,9 @@ and rendered as `<strong>₾ {ytd}</strong>` in the transaction table.
 - Add a transaction in a different calendar year — YTD resets for that
   year.
 - Add transactions for two different users — each user's YTD is independent.
+- Add multiple transactions for a user within the same month — only the
+  one with the latest date has a bold YTD Income value; adding a later
+  transaction in that month moves the bolding to it.
 
 ### Unit Testing
 
@@ -41,6 +58,11 @@ and rendered as `<strong>₾ {ytd}</strong>` in the transaction table.
 `YTD Precalculation - Optimized`): first/middle/last transaction, per-user
 and per-year isolation, same-date-different-timestamp ordering, invalid
 transactions, tie-breaking by id when date+timestamp collide, empty list.
+
+`Last-of-month highlight - findLastMonthTransactionIds`: single
+transaction in a month, only the latest date flagged, same-date tie-break
+by timestamp then id, per-user and per-month (including cross-year)
+isolation, invalid transactions skipped, empty list.
 
 ## Status
 

@@ -1,6 +1,5 @@
 # Features to add
 
-- Make YTD income field highlighted only for the last transaction in month for each user (CSS class).
 - Total income should be separated by user; supertotal income is useful too.
 - Tint rows with user's color in table.
 - Add yearly total separator in table.

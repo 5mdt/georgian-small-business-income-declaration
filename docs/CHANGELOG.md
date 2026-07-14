@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.7.0 2026-07-14
+
+- T4G-0008: The YTD Income value is now bold only on each user's last
+  transaction of every calendar month, so the month-end running total is
+  easy to spot in the table; other rows show it as plain text. New
+  `findLastMonthTransactionIds` in `src/utils.js`, computed over all
+  transactions (not just the filtered view) and reusing the same
+  date/timestamp/id tie-break as `sortTransactions` (`src/filters.js`).
+
 ## v1.6.0 2026-07-14
 
 - T4G-0014: Replaced the misleadingly-named "Clear All" (which only ever
