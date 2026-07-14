@@ -26,11 +26,18 @@ Simply open `index.html` in your web browser
 
 ### How to Use
 
-[Getting Started](./docs/GETTING-STARTED.md)
+Check "[Getting Started](./docs/GETTING-STARTED.md)" page for user guide.
+
+See the [Feature Requirements Document](./docs/FRD.md) for how each feature
+works, including step-by-step usage notes in each feature's Human Testing
+section.
 
 ## Development
 
-See [Contributing](./docs/CONTRIBUTING.md) for prerequisites, code quality checks, and deployment.
+See [Contributing](./docs/CONTRIBUTING.md) for prerequisites, code rules,
+and deployment.
+
+This project follows [Docs-Driven Development](./docs/DDD.md).
 
 ## Disclaimer
 

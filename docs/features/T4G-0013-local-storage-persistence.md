@@ -1,0 +1,50 @@
+# T4G-0013. Local storage persistence
+
+**Tags:** #storage #offline
+
+## Description
+
+Persists all app data in the browser (`localStorage`, with a
+`sessionStorage` fallback) so the app works offline after initial load and
+without a backend.
+
+## Implementation
+
+`src/storage.js`:
+- `getStorage()` prefers `localStorage`, probing with a throwaway
+  `setItem`/`removeItem`; falls back to `sessionStorage` if that throws
+  (e.g. Safari private mode, storage blocked by policy). Re-checked on every
+  call rather than cached, so a backend that becomes unavailable — or a test
+  swapping `global.localStorage` — is picked up immediately.
+- `getFromStorage(key, defaultValue, storageBackend)` — JSON-parses a
+  stored value, returning `defaultValue` on a missing key or parse error.
+- `saveToStorage(key, value, storageBackend)` — JSON-serializes and writes;
+  on `QuotaExceededError` it `alert()`s `ERROR_MESSAGES.QUOTA_EXCEEDED`
+  rather than failing silently (localStorage has a ~5-10MB limit); other
+  errors are logged only.
+- `removeFromStorage(key, storageBackend)`.
+
+Keys in use: `users`, `transactions`, `currencyRates_${date}` per date
+([[T4G-0002]]), `themePreference` ([[T4G-0015]]), `addTransaction`
+(checkbox state). `sessionStorage` additionally holds
+`collapsible_<sectionId>` state (not persisted across browser sessions by
+design).
+
+## Testing
+
+### Human Testing
+
+- Add data, reload the page — users and transactions persist.
+- Go offline (after initial load) — the app still functions against
+  cached data; only fetching new NBG rates requires connectivity.
+
+### Unit Testing
+
+`tests/unit/storage.test.js`: localStorage-writable vs. sessionStorage-
+fallback, read (existing/missing/corrupted JSON/explicit backend), save
+(success/quota-exceeded/other error), remove (existing/missing/throwing
+backend).
+
+## Status
+
+Implemented.

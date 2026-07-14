@@ -44,6 +44,10 @@ When adding a function to any `src/*.js` module:
    or extend a case in `tests/integration/app.test.js` instead of trying to
    unit-test it in isolation
 
+If the feature being tested has a `docs/features/T4G-NNNN-*.md` doc, write
+its Testing section first (Human/Unit/Integration) and let the test cases
+follow from that.
+
 ### Integration test gotchas (jsdom)
 
 - `script.js` has top-level side effects (`initTheme()`, event listener
