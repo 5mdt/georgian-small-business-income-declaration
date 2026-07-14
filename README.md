@@ -1,8 +1,11 @@
-# Currency to GEL Converter ![icon](./favicon.png)
+# georgian-small-business-income-declaration ![icon](./favicon.png)
 
 A static web application for Georgian small business owners to track foreign currency income and convert it to Georgian Lari (GEL) using official National Bank of Georgia exchange rates for tax declaration purposes.
 
 ![License](https://img.shields.io/badge/license-GPLv3-blue.svg)
+![HTML5](https://img.shields.io/badge/HTML5-E34F26?logo=html5&logoColor=white)
+![CSS3](https://img.shields.io/badge/CSS3-1572B6?logo=css3&logoColor=white)
+![Vanilla JS](https://img.shields.io/badge/JavaScript-Vanilla-F7DF1E?logo=javascript&logoColor=black)
 
 ![screenshot](./assets/Screenshot_2025-10-05_at_16-33-48_Currency_to_GEL_Converter.png "Screenshot")
 
@@ -13,10 +16,11 @@ A static web application for Georgian small business owners to track foreign cur
 - **Multi-User Support**: Track transactions for multiple individuals or business entities with taxpayer ID management
 - **Year-to-Date Calculation**: Automatically calculates running totals per user per calendar year
 - **Transaction Management**: Add, edit, filter, and sort currency conversion transactions
-- **Data Export/Import**: Export to CSV for backup or import into spreadsheet applications
+- **Data Export/Import**: Export transactions, users, or a full backup (CSV/JSON), and import them back in
 - **Demo Data**: Load sample transactions to explore features before entering real data
 - **Offline Storage**: All data stored locally in your browser - works offline after initial load
 - **Responsive Design**: Works on desktop and mobile devices
+- **Theme Switcher**: Toggle between light, dark, and system theme
 
 ## Quick Start
 
