@@ -15,7 +15,7 @@ the same calendar year, up to and including that transaction.
   `userId` → `date` → `timestamp`, and accumulates a running total per
   `${userId}_${year}` key into a `Map` of transaction id → YTD value.
 - `calculateYTDForTransaction(transaction, allTransactions)` — single-
-  transaction version used during CSV export ([[T4G-0010]]), since export
+  transaction version used during CSV export ([[T4G-0020]]), since export
   may run over a filtered/re-sorted subset. Filters `allTransactions` to the
   same user + calendar year + date ≤ target date, sorts by
   `date` → `timestamp`, and sums until it reaches the target transaction

@@ -16,7 +16,7 @@ import {
 } from './src/utils.js';
 import { APP_VERSION, DATA_SCHEMA_VERSION } from './src/version.js';
 
-import { getFromStorage, saveToStorage, removeFromStorage } from './src/storage.js';
+import { getFromStorage, saveToStorage, removeFromStorage, getAllStorageKeys } from './src/storage.js';
 import { sanitizeInput, showElement, hideElement, showError, hideError } from './src/dom.js';
 import {
     loadUsers,
@@ -46,8 +46,17 @@ import {
 import {
     buildImportResult,
     buildExportCSVContent,
-    buildExportFilename
+    buildExportFilename,
+    buildUsersCSVContent,
+    buildUsersImportResult,
+    detectCSVKind
 } from './src/csv.js';
+import {
+    buildBackupJSON,
+    parseBackupJSON,
+    mergeBackupData,
+    selectBackupKeys
+} from './src/backup.js';
 
 // ===========================
 // Theme Management
@@ -210,30 +219,23 @@ function checkForAppUpdate() {
 // above has resolved, so at most one modal is visible at a time.
 
 const DATA_SCHEMA_STORAGE_KEY = 't4g_dataSchemaVersion';
-// True once the user has downloaded a backup during this page load, so
-// dismissMigrationModal() knows whether to confirm before closing.
+// True once the user has downloaded a *complete* backup during this page
+// load, so dismissMigrationModal() knows whether to confirm before
+// closing. Only exportBackupJSON() sets this - unlike exportToCSV() (can
+// be filtered to a subset) or exportUsersCSV() (users only, no
+// transactions), the JSON backup is the only export guaranteed to capture
+// everything, so it's the only one that counts as "a backup".
 let migrationBackupDownloaded = false;
 
-function exportBackupCSV() {
-    const allTransactions = loadTransactions();
-
-    if (allTransactions.length === 0) {
-        alert('No transactions to back up.');
-        return;
-    }
-
-    // Unfiltered, unlike exportToCSV() - a backup must include every
-    // transaction regardless of the active filters.
-    const csvContent = buildExportCSVContent(
-        allTransactions,
-        (t) => calculateYTDForTransaction(t, allTransactions),
-        getUserById,
-        window.location.href
-    );
-
-    const todayISODate = new Date().toISOString().split('T')[0];
-    downloadCSV(csvContent, `gel-backup-${todayISODate}.csv`);
-    migrationBackupDownloaded = true;
+// The schema version of the data actually stored right now - not
+// DATA_SCHEMA_VERSION (the running code's schema). Every export tags
+// itself with this, so a backup taken before a pending migration is
+// labeled with the shape it actually has, not the shape the code would
+// produce after migrating. Same baseline as checkForSchemaMigration below.
+function currentDataSchemaVersion() {
+    const storedVersion = getFromStorage(DATA_SCHEMA_STORAGE_KEY, null);
+    if (storedVersion !== null) return Number(storedVersion);
+    return loadTransactions().length > 0 ? 1 : DATA_SCHEMA_VERSION;
 }
 
 function dismissMigrationModal() {
@@ -790,15 +792,15 @@ function renderTransactionList() {
 }
 
 // ===========================
-// CSV Export/Import
+// Backup & Restore (Export/Import)
 // ===========================
+//
+// See docs/features/T4G-0020-backup-and-restore.md.
 
-// Function to export transactions to CSV
-// Creates a downloadable blob from CSV content and triggers the browser's
-// save dialog via a throwaway anchor. Shared by exportToCSV (filtered) and
-// exportBackupCSV (unfiltered, for the migration modal).
-function downloadCSV(csvContent, filename) {
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+// Creates a downloadable blob from file content and triggers the browser's
+// save dialog via a throwaway anchor. Shared by every export path below.
+function downloadFile(content, filename, mimeType) {
+    const blob = new Blob([content], { type: mimeType });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
 
@@ -835,13 +837,44 @@ function exportToCSV() {
         transactions,
         (t) => calculateYTDForTransaction(t, allTransactions),
         getUserById,
+        currentDataSchemaVersion(),
         window.location.href
     );
 
     const todayISODate = new Date().toISOString().split('T')[0];
     const filename = buildExportFilename(filterState, getUserById, todayISODate);
 
-    downloadCSV(csvContent, filename);
+    downloadFile(csvContent, filename, 'text/csv;charset=utf-8;');
+}
+
+function exportUsersCSV() {
+    const users = loadUsers();
+
+    if (users.length === 0) {
+        alert('No users to export.');
+        return;
+    }
+
+    const csvContent = buildUsersCSVContent(users, currentDataSchemaVersion(), window.location.href);
+    const todayISODate = new Date().toISOString().split('T')[0];
+
+    downloadFile(csvContent, `gel-users-${todayISODate}.csv`, 'text/csv;charset=utf-8;');
+}
+
+function exportBackupJSON() {
+    const schemaVersion = currentDataSchemaVersion();
+    const keysToBackup = selectBackupKeys(getAllStorageKeys(), schemaVersion);
+
+    const snapshot = {};
+    keysToBackup.forEach(key => {
+        snapshot[key] = getFromStorage(key);
+    });
+
+    const json = buildBackupJSON(snapshot, schemaVersion, window.location.href);
+    const todayISODate = new Date().toISOString().split('T')[0];
+
+    downloadFile(json, `gel-backup-${todayISODate}.json`, 'application/json;charset=utf-8;');
+    migrationBackupDownloaded = true;
 }
 
 // Function to import transactions from CSV
@@ -892,12 +925,157 @@ function importFromCSV(file) {
     reader.readAsText(file);
 }
 
+// ===========================
+// Export/Import Modals
+// ===========================
+
+function openExportModal() {
+    showElement(document.getElementById('exportModal'));
+}
+
+function closeExportModal() {
+    hideElement(document.getElementById('exportModal'));
+}
+
+function openImportModal() {
+    document.getElementById('importOverwriteCheckbox').checked = false;
+    hideElement(document.getElementById('importOverwriteWarning'));
+    resetImportFileSelection();
+    showElement(document.getElementById('importModal'));
+}
+
+function closeImportModal() {
+    hideElement(document.getElementById('importModal'));
+}
+
+function toggleImportOverwriteWarning() {
+    const checked = document.getElementById('importOverwriteCheckbox').checked;
+    const warning = document.getElementById('importOverwriteWarning');
+    if (checked) {
+        showElement(warning);
+    } else {
+        hideElement(warning);
+    }
+}
+
+// Clears the chosen-file indicator and disables Start Import, so picking a
+// file only stages it - the user reviews the overwrite checkbox/warning
+// and clicks Start Import to actually run it.
+function resetImportFileSelection() {
+    document.getElementById('importFileInput').value = '';
+    hideElement(document.getElementById('importSelectedFileName'));
+    document.getElementById('startImportButton').disabled = true;
+}
+
+function onImportFileChosen() {
+    const fileInput = document.getElementById('importFileInput');
+    const file = fileInput.files[0];
+    const nameLabel = document.getElementById('importSelectedFileName');
+
+    if (!file) {
+        resetImportFileSelection();
+        return;
+    }
+
+    nameLabel.textContent = `Selected: ${file.name}`;
+    showElement(nameLabel);
+    document.getElementById('startImportButton').disabled = false;
+}
+
+function startImport() {
+    const file = document.getElementById('importFileInput').files[0];
+    handleImportFile(file);
+}
+
+// Routes a .csv file to the transactions or users importer based on its
+// header (see detectCSVKind, src/csv.js).
+function processCSVImportAuto(content, overwrite) {
+    const header = content.split('\n')[0].trim();
+    const kind = detectCSVKind(header);
+
+    if (kind === 'users') {
+        const existingUsers = loadUsers();
+        const { users, stats } = buildUsersImportResult(content, existingUsers, overwrite);
+        saveToStorage('users', users);
+        return `Users import completed!\nImported: ${stats.imported}\nSkipped (duplicates): ${stats.skipped}`;
+    }
+
+    if (kind === 'transactions') {
+        const existingTransactions = loadTransactions();
+        const existingUsers = loadUsers();
+        const { users, transactions, stats } = buildImportResult(content, existingTransactions, existingUsers, overwrite);
+        saveToStorage('users', users);
+        saveToStorage('transactions', transactions);
+        return 'Import completed!\n' +
+            `Imported: ${stats.imported}\n` +
+            `Skipped (duplicates): ${stats.skipped}\n` +
+            `New users created: ${stats.usersCreated}`;
+    }
+
+    throw new Error(ERROR_MESSAGES.INVALID_CSV);
+}
+
+// Restores a full JSON backup. overwrite=false merges users/transactions
+// only, leaving settings (theme, versions, rate cache) untouched.
+// overwrite=true wipes every currently-tracked key and writes the file's
+// data back as-is, a true wholesale restore.
+function processJSONImport(content, overwrite) {
+    const { data } = parseBackupJSON(content);
+
+    if (overwrite) {
+        getAllStorageKeys().forEach(key => removeFromStorage(key));
+        Object.entries(data).forEach(([key, value]) => saveToStorage(key, value));
+        return 'Backup restored! All existing data was replaced.';
+    }
+
+    const existingUsers = loadUsers();
+    const existingTransactions = loadTransactions();
+    const { users, transactions } = mergeBackupData(existingUsers, existingTransactions, data);
+
+    saveToStorage('users', users);
+    saveToStorage('transactions', transactions);
+    return 'Backup merged! Users and transactions from the file were added without duplicating existing data.';
+}
+
+function handleImportFile(file) {
+    if (!file) {
+        alert('No file selected.');
+        return;
+    }
+
+    const overwrite = document.getElementById('importOverwriteCheckbox').checked;
+    const isJSON = file.name.toLowerCase().endsWith('.json');
+
+    const reader = new FileReader();
+
+    reader.onload = function (e) {
+        try {
+            const content = e.target.result;
+            const message = isJSON
+                ? processJSONImport(content, overwrite)
+                : processCSVImportAuto(content, overwrite);
+
+            triggerDataRefresh();
+            closeImportModal();
+            alert(message);
+        } catch (error) {
+            alert(`Import failed: ${error.message}`);
+        }
+    };
+
+    reader.onerror = function () {
+        alert('Failed to read file.');
+    };
+
+    reader.readAsText(file);
+}
+
 // Function to load demo data
 function loadDemoData() {
     // Check if transactions already exist
     const existingTransactions = loadTransactions();
     if (existingTransactions.length > 0) {
-        alert('Error: Cannot load demo data. You already have saved transactions.\n\nPlease use "Clear All" to remove existing transactions first, or use "Import CSV" to add more data.');
+        alert('Error: Cannot load demo data. You already have saved transactions.\n\nPlease use "Clear All" to remove existing transactions first, or use "Import" to add more data.');
         return;
     }
 
@@ -1263,5 +1441,14 @@ window.toggleSort = toggleSort;
 window.dismissUpdateModal = dismissUpdateModal;
 window.checkForAppUpdate = checkForAppUpdate;
 window.dismissMigrationModal = dismissMigrationModal;
-window.exportBackupCSV = exportBackupCSV;
 window.checkForSchemaMigration = checkForSchemaMigration;
+window.openExportModal = openExportModal;
+window.closeExportModal = closeExportModal;
+window.openImportModal = openImportModal;
+window.closeImportModal = closeImportModal;
+window.toggleImportOverwriteWarning = toggleImportOverwriteWarning;
+window.exportUsersCSV = exportUsersCSV;
+window.exportBackupJSON = exportBackupJSON;
+window.handleImportFile = handleImportFile;
+window.onImportFileChosen = onImportFileChosen;
+window.startImport = startImport;

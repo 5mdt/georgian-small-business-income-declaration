@@ -6,7 +6,7 @@
 
 Tracks the shape/version of the data stored in `localStorage`, separately
 from the app version ([[T4G-0018]]). When the running code's data schema is
-newer than the user's stored data, shows a modal recommending a CSV backup
+newer than the user's stored data, shows a modal recommending a backup
 before the data is treated as migrated.
 
 ## Implementation
@@ -29,12 +29,13 @@ style). Bumped by hand whenever a stored data shape actually changes.
     `DATA_SCHEMA_VERSION`, no modal.
 - The modal (`#migrationModal` in `index.html`, same `.modal-overlay`/
   `.modal` styling as [[T4G-0018]]'s update modal) has two controls:
-  - "Download backup (CSV)" → `exportBackupCSV()`, a full, **unfiltered**
-    export of every transaction (ignores `filterState`, unlike
-    `exportToCSV()` — a backup must not silently omit filtered-out rows).
-    Sets in-memory `migrationBackupDownloaded = true`. Both this and
-    `exportToCSV()` share a `downloadCSV(csvContent, filename)` helper for
-    the blob/anchor download mechanics ([[T4G-0010]]).
+  - "Download backup" → `openExportModal()`, the shared Export modal from
+    [[T4G-0020]] (transactions CSV / users CSV / full JSON backup). Only a
+    successful full JSON backup export sets in-memory
+    `migrationBackupDownloaded = true` — the other two formats aren't
+    guaranteed to be complete (a filtered transactions CSV, or a users CSV
+    with no transactions), so they don't satisfy the "you have a backup"
+    check.
   - "Continue" → `dismissMigrationModal()`. If no backup was downloaded
     this session, `confirm()`s first; canceling leaves the modal open. On
     confirm (or if a backup was already downloaded), persists
@@ -46,15 +47,19 @@ after the update modal is resolved — chained from `checkForAppUpdate()`
 (when no update is pending) and from `dismissUpdateModal()` (once the
 update modal closes) — so the two modals never stack.
 
-**CSV self-description**: `buildExportCSVContent` ([[T4G-0010]]) appends
-trailing `#`-prefixed comment lines to every export (both the regular
-"Export CSV" button and this feature's backup button): a file description,
-the project's GitHub URL, the app's own URL at export time (if provided —
-`script.js` passes `window.location.href`), and the data schema version.
-Any CSV file can later be matched back to the schema and instance that
-produced it. Trailing, not leading — none of these lines has 12+
-comma-separated values, so `validateCSVRow` silently drops all of them on
-re-import ([[T4G-0011]]) with no parser changes needed.
+**Self-description, and schema-of-*data*, not schema-of-*code***: every
+export (CSV or JSON, [[T4G-0020]]) is tagged with the schema version of the
+data actually being exported — read from `t4g_dataSchemaVersion` (falling
+back to the same `1`-if-transactions-exist baseline as
+`checkForSchemaMigration` above), not the running code's
+`DATA_SCHEMA_VERSION`. A backup taken while a migration is still pending is
+therefore correctly labeled with the shape it actually has, not the shape
+the code would produce after migrating — so it can never be mistaken for
+already-migrated data on restore. CSV exports also append trailing
+`#`-prefixed comment lines (file description, GitHub URL, instance URL if
+known, data schema version); none has 12+ comma-separated values, so
+`validateCSVRow` silently drops them on re-import with no parser changes
+needed.
 
 ## Configuration
 
@@ -74,21 +79,21 @@ version-tracking and backup-prompt infrastructure).
   appears (after any pending update modal).
 - Click "Continue" without exporting — a confirm dialog warns no backup was
   downloaded; canceling keeps the modal open.
-- Click "Download backup (CSV)", then "Continue" — no confirm prompt; modal
-  closes immediately, and the downloaded CSV contains every transaction
-  regardless of active filters, ending with the file-description/GitHub/
-  instance-URL/schema-version comment lines.
+- Click "Download backup", pick "Full backup (JSON)", then "Continue" — no
+  confirm prompt; modal closes immediately. Picking one of the other two
+  export options first still prompts the confirm, since neither is
+  guaranteed to be a complete backup.
 - Reload again — modal does not reappear.
-- Import that same backup file back in — it's accepted normally; the
-  trailing comment line is silently ignored, not counted as skipped.
+- Import that backup file back in — it's accepted normally.
 
 ### Integration Testing
 
 `tests/integration/app.test.js` (`data schema migration`): key missing +
 no transactions (silent baseline); key missing + transactions (treated as
 schema 1, no modal); stored version below current (modal shows); Continue
-without backup (confirm-gated); Download backup then Continue (no confirm,
-unfiltered CSV); modal ordering relative to the update-notification modal.
+without backup (confirm-gated); Download backup opens the Export modal and
+a successful export from it skips the confirm; modal ordering relative to
+the update-notification modal.
 
 ## Status
 

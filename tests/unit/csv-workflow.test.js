@@ -4,9 +4,14 @@ import {
     ensureUserExistsFromCSV,
     buildImportResult,
     buildExportCSVContent,
-    buildExportFilename
+    buildExportFilename,
+    buildUsersCSVContent,
+    buildUsersImportResult,
+    detectCSVKind
 } from '../../src/csv.js';
 import { DATA_SCHEMA_VERSION } from '../../src/version.js';
+
+const USERS_HEADER = 'User ID,User Name,Taxpayer ID';
 
 const HEADER = 'Date,User ID,User Name,Taxpayer ID,Currency Code,Currency Name,Amount,Rate,Quantity,Converted GEL,Comment,Timestamp';
 const HEADER_WITH_YTD = 'Date,User ID,User Name,Taxpayer ID,Currency Code,Currency Name,Amount,Rate,Quantity,Converted GEL,YTD Income,Comment,Timestamp';
@@ -173,6 +178,127 @@ describe('buildImportResult', () => {
         expect(result.transactions[0].comment).toBe('Test');
         expect(result.transactions[0].timestamp).toBe('1000');
     });
+
+    describe('overwrite', () => {
+        const existingUsers = [{ id: 'user_old', name: 'Old User', taxpayerId: '' }];
+        const existingTransactions = [{
+            id: 'existing_tx', userId: 'user_old', date: '2025-01-01', currencyCode: 'USD',
+            amount: 1, convertedGEL: 1, timestamp: '1'
+        }];
+
+        it('ignores existing data entirely and builds the result purely from the file', () => {
+            const content = [HEADER, csvRow({ timestamp: '9999' })].join('\n');
+            const result = buildImportResult(content, existingTransactions, existingUsers, true);
+
+            expect(result.transactions).toHaveLength(1);
+            expect(result.transactions[0].timestamp).toBe('9999');
+            expect(result.users.map(u => u.id)).toEqual(['user_1']);
+        });
+
+        it('defaults to merge (overwrite=false) when the argument is omitted', () => {
+            const content = [HEADER, csvRow({ timestamp: '9999' })].join('\n');
+            const result = buildImportResult(content, existingTransactions, existingUsers);
+
+            expect(result.transactions.map(t => t.id)).toContain('existing_tx');
+            expect(result.users.map(u => u.id)).toContain('user_old');
+        });
+
+        it('still dedups within the same file when overwriting', () => {
+            const content = [HEADER, csvRow({ timestamp: '5000' }), csvRow({ timestamp: '5000', userId: 'user_2' })].join('\n');
+            const result = buildImportResult(content, existingTransactions, existingUsers, true);
+
+            expect(result.stats).toEqual({ imported: 1, skipped: 1, usersCreated: 1 });
+        });
+    });
+});
+
+describe('buildUsersCSVContent', () => {
+    it('builds a header + one row per user, ending with the shared comment tail', () => {
+        const users = [{ id: 'user_1', name: 'John "JD" Doe', taxpayerId: '123456' }];
+        const csvContent = buildUsersCSVContent(users, DATA_SCHEMA_VERSION, 'https://example.com/');
+
+        const lines = csvContent.trim().split('\n');
+        expect(lines[0]).toBe('User ID,User Name,Taxpayer ID');
+        expect(lines[1]).toBe('user_1,"John ""JD"" Doe","123456"');
+        expect(lines.slice(2)).toEqual([
+            '# Currency to GEL Converter - CSV export',
+            '# https://github.com/5mdt/georgian-small-business-income-declaration',
+            '# Instance: https://example.com/',
+            `# Data schema version: ${DATA_SCHEMA_VERSION}`
+        ]);
+    });
+
+    it('tags the export with the injected schema version', () => {
+        const csvContent = buildUsersCSVContent([], 0);
+        expect(csvContent).toContain('# Data schema version: 0');
+    });
+});
+
+describe('buildUsersImportResult', () => {
+    it('rejects a CSV with a malformed header', () => {
+        const content = 'Not,The,Right,Header\nuser_1,John,123456';
+        expect(() => buildUsersImportResult(content, [])).toThrow(/Invalid CSV/i);
+    });
+
+    it('merges new users by default, adding missing ones', () => {
+        const content = [USERS_HEADER, 'user_2,Bob,999'].join('\n');
+        const result = buildUsersImportResult(content, [{ id: 'user_1', name: 'John', taxpayerId: '' }]);
+
+        expect(result.stats).toEqual({ imported: 1, skipped: 0 });
+        expect(result.users.map(u => u.id)).toEqual(['user_1', 'user_2']);
+    });
+
+    it('skips a row whose id already exists when not overwriting', () => {
+        const content = [USERS_HEADER, 'user_1,Different Name,000'].join('\n');
+        const result = buildUsersImportResult(content, [{ id: 'user_1', name: 'John', taxpayerId: '' }]);
+
+        expect(result.stats).toEqual({ imported: 0, skipped: 1 });
+        expect(result.users[0].name).toBe('John');
+    });
+
+    it('ignores existing users entirely when overwrite is true', () => {
+        const content = [USERS_HEADER, 'user_2,Bob,999'].join('\n');
+        const result = buildUsersImportResult(content, [{ id: 'user_1', name: 'John', taxpayerId: '' }], true);
+
+        expect(result.users).toEqual([{ id: 'user_2', name: 'Bob', taxpayerId: '999' }]);
+    });
+
+    it('drops rows with invalid user data (empty id)', () => {
+        const content = [USERS_HEADER, ',No Id,123'].join('\n');
+        const result = buildUsersImportResult(content, []);
+
+        expect(result.stats).toEqual({ imported: 0, skipped: 0 });
+        expect(result.users).toEqual([]);
+    });
+
+    it('skips blank lines', () => {
+        const content = [USERS_HEADER, '', 'user_1,John,123', ''].join('\n');
+        const result = buildUsersImportResult(content, []);
+
+        expect(result.stats.imported).toBe(1);
+    });
+
+    it('silently ignores the trailing comment tail lines from a users export', () => {
+        const csvContent = buildUsersCSVContent([{ id: 'user_1', name: 'John', taxpayerId: '123' }], DATA_SCHEMA_VERSION, 'https://example.com/');
+        const result = buildUsersImportResult(csvContent, []);
+
+        expect(result.stats).toEqual({ imported: 1, skipped: 0 });
+    });
+});
+
+describe('detectCSVKind', () => {
+    it('detects a transactions header', () => {
+        expect(detectCSVKind(HEADER)).toBe('transactions');
+        expect(detectCSVKind(HEADER_WITH_YTD)).toBe('transactions');
+    });
+
+    it('detects a users header', () => {
+        expect(detectCSVKind(USERS_HEADER)).toBe('users');
+    });
+
+    it('returns null for an unrecognized header', () => {
+        expect(detectCSVKind('Foo,Bar,Baz')).toBeNull();
+    });
 });
 
 describe('export/import round trip', () => {
@@ -185,7 +311,7 @@ describe('export/import round trip', () => {
         }];
 
         const getUserById = (id) => users.find(u => u.id === id);
-        const csvContent = buildExportCSVContent(transactions, () => 287.5, getUserById);
+        const csvContent = buildExportCSVContent(transactions, () => 287.5, getUserById, DATA_SCHEMA_VERSION);
 
         const result = buildImportResult(csvContent, [], users);
 
@@ -212,7 +338,7 @@ describe('export/import round trip', () => {
             convertedGEL: 287.5, comment: 'Contract #123, final payment', timestamp: '999'
         }];
 
-        const csvContent = buildExportCSVContent(transactions, () => 287.5, (id) => users.find(u => u.id === id));
+        const csvContent = buildExportCSVContent(transactions, () => 287.5, (id) => users.find(u => u.id === id), DATA_SCHEMA_VERSION);
         const result = buildImportResult(csvContent, [], []);
 
         expect(result.transactions[0].comment).toBe('Contract #123, final payment');
@@ -229,7 +355,7 @@ describe('export/import round trip', () => {
 
         const csvContent = buildExportCSVContent(
             transactions, () => 287.5, (id) => users.find(u => u.id === id),
-            'https://example.com/gel-converter/'
+            DATA_SCHEMA_VERSION, 'https://example.com/gel-converter/'
         );
         const trailingLines = csvContent.trim().split('\n').slice(2); // drop header + data row
         expect(trailingLines).toEqual([
@@ -245,10 +371,18 @@ describe('export/import round trip', () => {
 
     it('omits the instance line when no instance URL is provided', () => {
         const transactions = [];
-        const csvContent = buildExportCSVContent(transactions, () => 0, () => undefined);
+        const csvContent = buildExportCSVContent(transactions, () => 0, () => undefined, DATA_SCHEMA_VERSION);
 
         expect(csvContent).not.toContain('# Instance:');
         expect(csvContent).toContain(`# Data schema version: ${DATA_SCHEMA_VERSION}`);
+    });
+
+    it('tags the export with the injected schema version, not the code constant', () => {
+        const transactions = [];
+        const csvContent = buildExportCSVContent(transactions, () => 0, () => undefined, 0);
+
+        expect(csvContent).toContain('# Data schema version: 0');
+        expect(csvContent).not.toContain(`# Data schema version: ${DATA_SCHEMA_VERSION}`);
     });
 });
 

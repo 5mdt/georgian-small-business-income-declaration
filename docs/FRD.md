@@ -11,8 +11,6 @@
 - [T4G-0007. Transaction management](features/T4G-0007-transaction-management.md) - `#transactions`
 - [T4G-0008. Year-to-date income calculation](features/T4G-0008-ytd-income-calculation.md) - `#ytd` `#transactions`
 - [T4G-0009. Transaction filter and sort](features/T4G-0009-filter-and-sort.md) - `#transactions` `#ui`
-- [T4G-0010. CSV export](features/T4G-0010-csv-export.md) - `#csv` `#transactions`
-- [T4G-0011. CSV import](features/T4G-0011-csv-import.md) - `#csv` `#transactions` `#users`
 - [T4G-0012. Demo data](features/T4G-0012-demo-data.md) - `#demo` `#csv`
 - [T4G-0013. Local storage persistence](features/T4G-0013-local-storage-persistence.md) - `#storage` `#offline`
 - [T4G-0014. Data and cache clearing](features/T4G-0014-data-and-cache-clearing.md) - `#storage` `#transactions` `#users`
@@ -21,21 +19,22 @@
 - [T4G-0017. Amount formatting](features/T4G-0017-amount-formatting.md) - `#currency` `#ui`
 - [T4G-0018. Update notification](features/T4G-0018-update-notification.md) - `#updates` `#ui` `#storage`
 - [T4G-0019. Data schema version](features/T4G-0019-data-schema-version.md) - `#storage` `#migration` `#ui` `#csv`
+- [T4G-0020. Backup & Restore](features/T4G-0020-backup-and-restore.md) - `#csv` `#storage` `#users` `#transactions` `#ui` `#migration`
 
 ## Tags
 
 - `#currency`: T4G-0001, T4G-0002, T4G-0003, T4G-0004, T4G-0017
 - `#rates`: T4G-0002, T4G-0003
 - `#conversion`: T4G-0001
-- `#storage`: T4G-0002, T4G-0013, T4G-0014, T4G-0018, T4G-0019
+- `#storage`: T4G-0002, T4G-0013, T4G-0014, T4G-0018, T4G-0019, T4G-0020
 - `#validation`: T4G-0003, T4G-0016
-- `#users`: T4G-0005, T4G-0006, T4G-0011, T4G-0014
-- `#transactions`: T4G-0006, T4G-0007, T4G-0008, T4G-0009, T4G-0010, T4G-0011, T4G-0014
+- `#users`: T4G-0005, T4G-0006, T4G-0014, T4G-0020
+- `#transactions`: T4G-0006, T4G-0007, T4G-0008, T4G-0009, T4G-0014, T4G-0020
 - `#ytd`: T4G-0008
-- `#ui`: T4G-0009, T4G-0015, T4G-0017, T4G-0018, T4G-0019
-- `#csv`: T4G-0010, T4G-0011, T4G-0012, T4G-0019
+- `#ui`: T4G-0009, T4G-0015, T4G-0017, T4G-0018, T4G-0019, T4G-0020
+- `#csv`: T4G-0012, T4G-0019, T4G-0020
 - `#demo`: T4G-0012
 - `#offline`: T4G-0013
 - `#theme`: T4G-0015
 - `#updates`: T4G-0018
-- `#migration`: T4G-0019
+- `#migration`: T4G-0019, T4G-0020

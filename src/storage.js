@@ -82,3 +82,18 @@ export function removeFromStorage(key, storageBackend = getStorage()) {
         return false;
     }
 }
+
+/**
+ * Enumerates every key currently in a storage backend, via the standard
+ * Storage.length/Storage.key(i) interface - Object.keys() doesn't reflect a
+ * Storage object's actual entries.
+ * @param {Storage} [storageBackend] - Storage backend to use (defaults to getStorage())
+ * @returns {Array<string>} All keys currently stored
+ */
+export function getAllStorageKeys(storageBackend = getStorage()) {
+    const keys = [];
+    for (let i = 0; i < storageBackend.length; i++) {
+        keys.push(storageBackend.key(i));
+    }
+    return keys;
+}

@@ -8,9 +8,8 @@
 // DOM itself. script.js wraps these with storage + FileReader/Blob/download
 // plumbing.
 
-import { validateCSVHeader, parseCSVLine, validateCSVRow, validateUser, generateTransactionId } from './utils.js';
+import { validateCSVHeader, validateUsersCSVHeader, parseCSVLine, validateCSVRow, validateUser, generateTransactionId } from './utils.js';
 import { sanitizeInput } from './dom.js';
-import { DATA_SCHEMA_VERSION } from './version.js';
 
 /**
  * Builds a transaction object from a parsed CSV row.
@@ -74,18 +73,22 @@ export function ensureUserExistsFromCSV(userId, userName, taxpayerId, users, use
  * @param {string} content - Raw CSV file content
  * @param {Array<Object>} existingTransactions
  * @param {Array<Object>} existingUsers
+ * @param {boolean} [overwrite] - false (default): merge into existing data,
+ *   skipping duplicate timestamps. true: ignore existing data entirely -
+ *   the result is built purely from the file (plus any users it
+ *   references), i.e. a wholesale replace.
  * @returns {{users: Array<Object>, transactions: Array<Object>, stats: {imported: number, skipped: number, usersCreated: number}}}
  * @throws {Error} If the CSV header is missing required columns
  */
-export function buildImportResult(content, existingTransactions, existingUsers) {
+export function buildImportResult(content, existingTransactions, existingUsers, overwrite = false) {
     const lines = content.split('\n');
     const header = lines[0].trim();
 
     validateCSVHeader(header);
 
-    const transactions = [...existingTransactions];
-    const users = [...existingUsers];
-    const existingTimestamps = new Set(existingTransactions.map(t => t.timestamp));
+    const transactions = overwrite ? [] : [...existingTransactions];
+    const users = overwrite ? [] : [...existingUsers];
+    const existingTimestamps = overwrite ? new Set() : new Set(existingTransactions.map(t => t.timestamp));
     const userIds = new Set(users.map(u => u.id));
 
     const stats = { imported: 0, skipped: 0, usersCreated: 0 };
@@ -122,27 +125,47 @@ export function buildImportResult(content, existingTransactions, existingUsers) 
 }
 
 const EXPORT_CSV_HEADER = 'Date,User ID,User Name,Taxpayer ID,Currency Code,Currency Name,Amount,Exchange Rate,Quantity,Converted GEL,YTD Income,Comment,Timestamp\n';
+const USERS_CSV_HEADER = 'User ID,User Name,Taxpayer ID\n';
 
-const APP_NAME = 'Currency to GEL Converter';
-const GITHUB_URL = 'https://github.com/5mdt/georgian-small-business-income-declaration';
+export const APP_NAME = 'Currency to GEL Converter';
+export const GITHUB_URL = 'https://github.com/5mdt/georgian-small-business-income-declaration';
 
 /**
- * Builds the CSV text for a set of (already filtered/sorted) transactions.
- * Ends with trailing `#`-prefixed comment lines (file description, GitHub
- * link, the instance URL if provided, and the data schema version). None
- * has 12+ comma-separated values, so validateCSVRow() (and therefore
- * buildImportResult()) silently skips all of them on re-import without
- * needing any parser changes.
- * @param {Array<Object>} transactions - Transactions to export
- * @param {Function} calculateYTDFn - (transaction) => number, YTD for that transaction
- * @param {Function} getUserByIdFn - (userId) => user object | undefined
+ * Builds the trailing `#`-prefixed comment lines shared by every export
+ * format (file description, GitHub link, the instance URL if provided, and
+ * the data schema version). None has 12+ (or 3+) comma-separated values, so
+ * validateCSVRow()/a users CSV row parser silently skips all of them on
+ * re-import without needing any parser changes.
+ * @param {number} dataSchemaVersion - Schema version of the data being
+ *   exported (the *stored* schema, not necessarily the running code's
+ *   DATA_SCHEMA_VERSION - see script.js's currentDataSchemaVersion()).
  * @param {string} [instanceUrl] - The app's own URL at export time (e.g.
  *   `window.location.href`), if known. src/csv.js has no `window` access of
  *   its own, so script.js injects this - same pattern as currency.js's
  *   injectable fetch.
+ * @returns {string} Comment tail text
+ */
+function buildCommentTail(dataSchemaVersion, instanceUrl) {
+    let tail = `# ${APP_NAME} - CSV export\n`;
+    tail += `# ${GITHUB_URL}\n`;
+    if (instanceUrl) {
+        tail += `# Instance: ${instanceUrl}\n`;
+    }
+    tail += `# Data schema version: ${dataSchemaVersion}\n`;
+    return tail;
+}
+
+/**
+ * Builds the CSV text for a set of (already filtered/sorted) transactions.
+ * Ends with the shared comment tail (see buildCommentTail).
+ * @param {Array<Object>} transactions - Transactions to export
+ * @param {Function} calculateYTDFn - (transaction) => number, YTD for that transaction
+ * @param {Function} getUserByIdFn - (userId) => user object | undefined
+ * @param {number} dataSchemaVersion - Schema version of the data being exported
+ * @param {string} [instanceUrl] - The app's own URL at export time, if known
  * @returns {string} CSV content, including header
  */
-export function buildExportCSVContent(transactions, calculateYTDFn, getUserByIdFn, instanceUrl) {
+export function buildExportCSVContent(transactions, calculateYTDFn, getUserByIdFn, dataSchemaVersion, instanceUrl) {
     let csvContent = EXPORT_CSV_HEADER;
 
     transactions.forEach(t => {
@@ -157,12 +180,7 @@ export function buildExportCSVContent(transactions, calculateYTDFn, getUserByIdF
         csvContent += `${t.date},${t.userId},${escapedUserName},${taxpayerId},${t.currencyCode},${escapedCurrencyName},${t.amount},${t.rate},${t.quantity},${t.convertedGEL},${ytdIncome},${escapedComment},${t.timestamp}\n`;
     });
 
-    csvContent += `# ${APP_NAME} - CSV export\n`;
-    csvContent += `# ${GITHUB_URL}\n`;
-    if (instanceUrl) {
-        csvContent += `# Instance: ${instanceUrl}\n`;
-    }
-    csvContent += `# Data schema version: ${DATA_SCHEMA_VERSION}\n`;
+    csvContent += buildCommentTail(dataSchemaVersion, instanceUrl);
 
     return csvContent;
 }
@@ -181,4 +199,89 @@ export function buildExportFilename(filterState, getUserByIdFn, todayISODate) {
         return `gel-transactions-${userName}-${todayISODate}.csv`;
     }
     return `gel-transactions-all-${todayISODate}.csv`;
+}
+
+/**
+ * Builds the CSV text for a set of users. Ends with the same shared comment
+ * tail as buildExportCSVContent (see buildCommentTail).
+ * @param {Array<Object>} users - Users to export
+ * @param {number} dataSchemaVersion - Schema version of the data being exported
+ * @param {string} [instanceUrl] - The app's own URL at export time, if known
+ * @returns {string} CSV content, including header
+ */
+export function buildUsersCSVContent(users, dataSchemaVersion, instanceUrl) {
+    let csvContent = USERS_CSV_HEADER;
+
+    users.forEach(u => {
+        const escapedName = `"${(u.name || '').replace(/"/g, '""')}"`;
+        const escapedTaxpayerId = `"${(u.taxpayerId || '').replace(/"/g, '""')}"`;
+        csvContent += `${u.id},${escapedName},${escapedTaxpayerId}\n`;
+    });
+
+    csvContent += buildCommentTail(dataSchemaVersion, instanceUrl);
+
+    return csvContent;
+}
+
+/**
+ * Parses users CSV content and computes the resulting users after import,
+ * without touching storage.
+ * @param {string} content - Raw CSV file content
+ * @param {Array<Object>} existingUsers
+ * @param {boolean} [overwrite] - false (default): merge into
+ *   existingUsers, skipping a row whose id already exists. true: ignore
+ *   existingUsers entirely - the result is exactly the users in the file.
+ * @returns {{users: Array<Object>, stats: {imported: number, skipped: number}}}
+ * @throws {Error} If the CSV header is missing required columns
+ */
+export function buildUsersImportResult(content, existingUsers, overwrite = false) {
+    const lines = content.split('\n');
+    const header = lines[0].trim();
+
+    validateUsersCSVHeader(header);
+
+    const users = overwrite ? [] : [...existingUsers];
+    const userIds = new Set(users.map(u => u.id));
+    const stats = { imported: 0, skipped: 0 };
+
+    for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        const values = parseCSVLine(line);
+        if (values.length < 3) continue;
+
+        const candidate = {
+            id: values[0],
+            name: sanitizeInput(values[1]),
+            taxpayerId: sanitizeInput(values[2])
+        };
+        if (!validateUser(candidate)) continue;
+
+        if (userIds.has(candidate.id)) {
+            stats.skipped++;
+            continue;
+        }
+
+        users.push(candidate);
+        userIds.add(candidate.id);
+        stats.imported++;
+    }
+
+    return { users, stats };
+}
+
+/**
+ * Detects which importer a CSV header belongs to, so the Import modal can
+ * route a file without asking the user to pick a type.
+ * @param {string} header - CSV header line
+ * @returns {'transactions'|'users'|null}
+ */
+export function detectCSVKind(header) {
+    const transactionColumns = ['Date', 'Currency Code', 'Converted GEL'];
+    const usersColumns = ['User ID', 'User Name', 'Taxpayer ID'];
+
+    if (transactionColumns.every(col => header.includes(col))) return 'transactions';
+    if (usersColumns.every(col => header.includes(col))) return 'users';
+    return null;
 }

@@ -23,13 +23,22 @@ without a backend.
   rather than failing silently (localStorage has a ~5-10MB limit); other
   errors are logged only.
 - `removeFromStorage(key, storageBackend)`.
+- `getAllStorageKeys(storageBackend)` — enumerates every key via the
+  standard `Storage.length`/`Storage.key(i)` interface (not `Object.keys`,
+  which doesn't reflect a `Storage` object's actual entries). Used by the
+  full JSON backup ([[T4G-0020]]) to snapshot and, on a wholesale restore,
+  wipe every key the app has written.
 
 Keys in use: `users`, `transactions`, `currencyRates_${date}` per date
 ([[T4G-0002]]), `themePreference` ([[T4G-0015]]), `addTransaction`
 (checkbox state), `t4g_appVersion` ([[T4G-0018]]), `t4g_dataSchemaVersion`
 ([[T4G-0019]]) — the latter two are the first prefixed keys in the app.
 `sessionStorage` additionally holds `collapsible_<sectionId>` state (not
-persisted across browser sessions by design).
+persisted across browser sessions by design). The full JSON backup
+([[T4G-0020]]) does **not** snapshot every key unconditionally — its scope
+depends on the stored data schema version (`users`/`transactions`/`t4g_*`
+at schema `1`; only `t4g_*` otherwise), so `currencyRates_*`/
+`themePreference`/`addTransaction` are excluded in both cases today.
 
 ## Testing
 

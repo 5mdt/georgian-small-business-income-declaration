@@ -375,6 +375,7 @@ describe('App integration (real index.html + script.js)', () => {
         });
     });
 
+
     describe('update notification', () => {
         const isModalHidden = () => document.getElementById('updateModal').classList.contains('hidden');
 
@@ -481,18 +482,16 @@ describe('App integration (real index.html + script.js)', () => {
             expect(JSON.parse(global.localStorage.getItem('t4g_dataSchemaVersion'))).toBe(1);
         });
 
-        it('downloading a backup skips the confirmation and exports every transaction, ignoring filters', async () => {
+        it('downloading a backup skips the confirmation, tagged with the mismatched schema version', async () => {
             fillConversionForm({ amount: '10', currency: 'USD', addAsTransaction: true });
             await clickConvert();
-
-            // Set a filter that would exclude the transaction just added, to
-            // prove the backup export ignores filterState entirely.
-            document.getElementById('filterUser').value = 'nonexistent-user';
-            document.getElementById('filterUser').dispatchEvent(new window.Event('change'));
 
             global.localStorage.setItem('t4g_dataSchemaVersion', JSON.stringify(0));
             window.checkForSchemaMigration();
             expect(isModalHidden()).toBe(false);
+
+            window.openExportModal();
+            expect(document.getElementById('exportModal').classList.contains('hidden')).toBe(false);
 
             let capturedBlob;
             global.URL.createObjectURL = vi.fn((blob) => {
@@ -501,16 +500,20 @@ describe('App integration (real index.html + script.js)', () => {
             });
             global.URL.revokeObjectURL = vi.fn();
 
-            window.exportBackupCSV();
+            window.exportBackupJSON();
             expect(global.URL.createObjectURL).toHaveBeenCalledTimes(1);
 
-            const csvText = await new Promise((resolve, reject) => {
+            const jsonText = await new Promise((resolve, reject) => {
                 const reader = new FileReader();
                 reader.onload = () => resolve(reader.result);
                 reader.onerror = reject;
                 reader.readAsText(capturedBlob);
             });
-            expect(csvText).toContain('USD');
+            const backup = JSON.parse(jsonText);
+            // Schema 0 isn't the legacy (===1) scope, so the backup is
+            // t4g_*-only here - see selectBackupKeys (src/backup.js).
+            expect(backup.dataSchemaVersion).toBe(0);
+            expect(backup.data).not.toHaveProperty('transactions');
 
             window.dismissMigrationModal();
 
@@ -532,6 +535,305 @@ describe('App integration (real index.html + script.js)', () => {
 
             expect(document.getElementById('updateModal').classList.contains('hidden')).toBe(true);
             expect(isModalHidden()).toBe(false); // now the migration modal appears
+        });
+    });
+
+    describe('Backup & Restore modals', () => {
+        async function readBlobAsText(capturedBlob) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsText(capturedBlob);
+            });
+        }
+
+        function stubDownload() {
+            let capturedBlob;
+            global.URL.createObjectURL = vi.fn((blob) => {
+                capturedBlob = blob;
+                return 'blob:mock-url';
+            });
+            global.URL.revokeObjectURL = vi.fn();
+            return () => capturedBlob;
+        }
+
+        beforeEach(() => {
+            document.getElementById('importOverwriteCheckbox').checked = false;
+            document.getElementById('exportModal').classList.add('hidden');
+            document.getElementById('importModal').classList.add('hidden');
+        });
+
+        it('opens and closes the export modal', () => {
+            const modal = document.getElementById('exportModal');
+            expect(modal.classList.contains('hidden')).toBe(true);
+
+            window.openExportModal();
+            expect(modal.classList.contains('hidden')).toBe(false);
+
+            window.closeExportModal();
+            expect(modal.classList.contains('hidden')).toBe(true);
+        });
+
+        it('opens the import modal with the overwrite checkbox reset and the warning hidden', () => {
+            document.getElementById('importOverwriteCheckbox').checked = true;
+            document.getElementById('importOverwriteWarning').classList.remove('hidden');
+
+            window.openImportModal();
+
+            expect(document.getElementById('importModal').classList.contains('hidden')).toBe(false);
+            expect(document.getElementById('importOverwriteCheckbox').checked).toBe(false);
+            expect(document.getElementById('importOverwriteWarning').classList.contains('hidden')).toBe(true);
+
+            window.closeImportModal();
+            expect(document.getElementById('importModal').classList.contains('hidden')).toBe(true);
+        });
+
+        function stageFile(file) {
+            const input = document.getElementById('importFileInput');
+            // jsdom can't construct a real FileList; override the property
+            // for the test the same way real browsers populate it on a
+            // user's file-picker selection.
+            Object.defineProperty(input, 'files', { value: [file], configurable: true });
+            window.onImportFileChosen();
+        }
+
+        it('choosing a file only stages it - Start Import stays disabled until a file is picked, then enables without importing', () => {
+            const startButton = document.getElementById('startImportButton');
+            expect(startButton.disabled).toBe(true);
+
+            const file = new File(['User ID,User Name,Taxpayer ID\nuser_x,X,1'], 'users.csv', { type: 'text/csv' });
+            stageFile(file);
+
+            expect(startButton.disabled).toBe(false);
+            const nameLabel = document.getElementById('importSelectedFileName');
+            expect(nameLabel.classList.contains('hidden')).toBe(false);
+            expect(nameLabel.textContent).toContain('users.csv');
+            expect(global.alert).not.toHaveBeenCalled(); // nothing imported yet
+        });
+
+        it('startImport reads the staged file and runs the import', async () => {
+            const file = new File(['User ID,User Name,Taxpayer ID\nuser_staged,Staged User,1'], 'users.csv', { type: 'text/csv' });
+            stageFile(file);
+
+            window.startImport();
+            await flushPromises();
+            await flushPromises();
+
+            expect(global.alert).toHaveBeenCalledWith(expect.stringContaining('Imported: 1'));
+            const names = Array.from(document.querySelectorAll('#userList input[id^="userName-"]')).map(i => i.value);
+            expect(names).toContain('Staged User');
+
+            window.deleteUser('user_staged');
+        });
+
+        it('reopening the import modal resets the staged file and disables Start Import again', () => {
+            const file = new File(['User ID,User Name,Taxpayer ID\nuser_y,Y,1'], 'users.csv', { type: 'text/csv' });
+            stageFile(file);
+            expect(document.getElementById('startImportButton').disabled).toBe(false);
+
+            window.openImportModal();
+
+            expect(document.getElementById('startImportButton').disabled).toBe(true);
+            expect(document.getElementById('importSelectedFileName').classList.contains('hidden')).toBe(true);
+        });
+
+        it('toggles the overwrite warning with the checkbox', () => {
+            const warning = document.getElementById('importOverwriteWarning');
+            const checkbox = document.getElementById('importOverwriteCheckbox');
+
+            checkbox.checked = true;
+            window.toggleImportOverwriteWarning();
+            expect(warning.classList.contains('hidden')).toBe(false);
+
+            checkbox.checked = false;
+            window.toggleImportOverwriteWarning();
+            expect(warning.classList.contains('hidden')).toBe(true);
+        });
+
+        it('exports a users CSV', () => {
+            const getBlob = stubDownload();
+            window.exportUsersCSV();
+
+            expect(global.URL.createObjectURL).toHaveBeenCalledTimes(1);
+            return readBlobAsText(getBlob()).then(csvText => {
+                expect(csvText).toContain('User ID,User Name,Taxpayer ID');
+                expect(csvText).toContain('user');
+            });
+        });
+
+        it('exports a full JSON backup in legacy scope (schema 1): users/transactions/t4g_* only, no settings or rate cache', async () => {
+            fillConversionForm({ amount: '10', currency: 'USD', addAsTransaction: true });
+            await clickConvert();
+
+            // Seed the settings/t4g_* keys explicitly so their inclusion/
+            // exclusion is actually demonstrated, not just coincidentally
+            // absent. checkForAppUpdate() -> checkForSchemaMigration()
+            // naturally persists t4g_appVersion/t4g_dataSchemaVersion=1
+            // (transactions exist, matching the real fresh-data baseline).
+            global.localStorage.setItem('themePreference', JSON.stringify('dark'));
+            window.checkForAppUpdate();
+            expect(global.localStorage.getItem('currencyRates_2025-01-15')).not.toBeNull();
+
+            // Apply a filter that would exclude the transaction just added,
+            // to prove the backup reads storage directly and ignores
+            // filterState entirely (unlike the filtered exportToCSV()).
+            document.getElementById('filterUser').value = 'nonexistent-user';
+            document.getElementById('filterUser').dispatchEvent(new window.Event('change'));
+
+            const getBlob = stubDownload();
+            window.exportBackupJSON();
+
+            expect(global.URL.createObjectURL).toHaveBeenCalledTimes(1);
+            const jsonText = await readBlobAsText(getBlob());
+            const backup = JSON.parse(jsonText);
+
+            expect(backup.data.transactions.some(t => t.currencyCode === 'USD')).toBe(true);
+            expect(backup.data.users.some(u => u.id === 'user')).toBe(true);
+            expect(backup.dataSchemaVersion).toBe(1);
+            expect(Object.keys(backup.data).sort()).toEqual(['t4g_appVersion', 't4g_dataSchemaVersion', 'transactions', 'users'].sort());
+            expect(backup.data).not.toHaveProperty('themePreference');
+            expect(backup.data).not.toHaveProperty('currencyRates_2025-01-15');
+        });
+
+        it('exports a full JSON backup in t4g_*-only scope when the stored schema is not 1', async () => {
+            fillConversionForm({ amount: '10', currency: 'USD', addAsTransaction: true });
+            await clickConvert();
+
+            window.checkForAppUpdate(); // seeds t4g_appVersion/t4g_dataSchemaVersion
+            global.localStorage.setItem('t4g_dataSchemaVersion', JSON.stringify(2));
+
+            const getBlob = stubDownload();
+            window.exportBackupJSON();
+
+            const jsonText = await readBlobAsText(getBlob());
+            const backup = JSON.parse(jsonText);
+
+            expect(backup.dataSchemaVersion).toBe(2);
+            expect(Object.keys(backup.data).sort()).toEqual(['t4g_appVersion', 't4g_dataSchemaVersion'].sort());
+            expect(backup.data).not.toHaveProperty('users');
+            expect(backup.data).not.toHaveProperty('transactions');
+        });
+
+        it('handleImportFile alerts when no file is given', () => {
+            window.handleImportFile(null);
+            expect(global.alert).toHaveBeenCalledWith('No file selected.');
+        });
+
+        it('imports a transactions CSV via auto-detection and merges by default', async () => {
+            const csv = [
+                'Date,User ID,User Name,Taxpayer ID,Currency Code,Currency Name,Amount,Rate,Quantity,Converted GEL,Comment,Timestamp',
+                '2025-05-01,user,user,,USD,US Dollar,100,2.875,1,287.5,Auto-detected row,888888'
+            ].join('\n');
+            const file = new File([csv], 'import.csv', { type: 'text/csv' });
+
+            window.handleImportFile(file);
+            await flushPromises();
+            await flushPromises();
+
+            expect(global.alert).toHaveBeenCalledWith(expect.stringContaining('Imported: 1'));
+            const commentValues = Array.from(document.querySelectorAll('#transactionList input.input-inline')).map(i => i.value);
+            expect(commentValues).toContain('Auto-detected row');
+        });
+
+        it('imports a users CSV via auto-detection', async () => {
+            const csv = ['User ID,User Name,Taxpayer ID', 'user_extra,Extra Person,555'].join('\n');
+            const file = new File([csv], 'users.csv', { type: 'text/csv' });
+
+            window.handleImportFile(file);
+            await flushPromises();
+            await flushPromises();
+
+            expect(global.alert).toHaveBeenCalledWith(expect.stringContaining('Imported: 1'));
+            const names = Array.from(document.querySelectorAll('#userList input.input-inline')).map(i => i.value);
+            expect(names).toContain('Extra Person');
+
+            window.deleteUser('user_extra');
+        });
+
+        it('rejects a CSV with an unrecognized header', async () => {
+            const file = new File(['Foo,Bar,Baz\n1,2,3'], 'mystery.csv', { type: 'text/csv' });
+
+            window.handleImportFile(file);
+            await flushPromises();
+            await flushPromises();
+
+            expect(global.alert).toHaveBeenCalledWith(expect.stringContaining('Import failed'));
+        });
+
+        it('overwrite=true replaces the transactions table wholesale via the import modal', async () => {
+            fillConversionForm({ amount: '10', currency: 'USD', addAsTransaction: true });
+            await clickConvert();
+
+            document.getElementById('importOverwriteCheckbox').checked = true;
+            const csv = [
+                'Date,User ID,User Name,Taxpayer ID,Currency Code,Currency Name,Amount,Rate,Quantity,Converted GEL,Comment,Timestamp',
+                '2025-06-01,user,user,,EUR,Euro,50,3.1,1,155,Replacement row,777777'
+            ].join('\n');
+            const file = new File([csv], 'import.csv', { type: 'text/csv' });
+
+            window.handleImportFile(file);
+            await flushPromises();
+            await flushPromises();
+
+            const commentValues = Array.from(document.querySelectorAll('#transactionList input.input-inline')).map(i => i.value);
+            expect(commentValues).toEqual(['Replacement row']);
+        });
+
+        it('restores a JSON backup with overwrite=false (merge)', async () => {
+            const backupJson = JSON.stringify({
+                app: 'Currency to GEL Converter',
+                dataSchemaVersion: 1,
+                data: {
+                    users: [{ id: 'user_json', name: 'From Backup', taxpayerId: '' }],
+                    transactions: []
+                }
+            });
+            const file = new File([backupJson], 'backup.json', { type: 'application/json' });
+
+            window.handleImportFile(file);
+            await flushPromises();
+            await flushPromises();
+
+            expect(global.alert).toHaveBeenCalledWith(expect.stringContaining('Backup merged'));
+            const names = Array.from(document.querySelectorAll('#userList input.input-inline')).map(i => i.value);
+            expect(names).toContain('From Backup');
+            expect(names).toContain('user'); // merge keeps the pre-existing default user
+
+            window.deleteUser('user_json');
+        });
+
+        it('restores a JSON backup with overwrite=true (wholesale replace)', async () => {
+            document.getElementById('importOverwriteCheckbox').checked = true;
+            const backupJson = JSON.stringify({
+                app: 'Currency to GEL Converter',
+                dataSchemaVersion: 1,
+                data: {
+                    users: [{ id: 'user_restored', name: 'Restored User', taxpayerId: '' }],
+                    transactions: [],
+                    themePreference: 'dark'
+                }
+            });
+            const file = new File([backupJson], 'backup.json', { type: 'application/json' });
+
+            window.handleImportFile(file);
+            await flushPromises();
+            await flushPromises();
+
+            expect(global.alert).toHaveBeenCalledWith(expect.stringContaining('Backup restored'));
+            const names = Array.from(document.querySelectorAll('#userList input[id^="userName-"]')).map(i => i.value);
+            expect(names).toEqual(['Restored User']); // the pre-existing default user is gone
+            expect(JSON.parse(global.localStorage.getItem('themePreference'))).toBe('dark');
+        });
+
+        it('alerts when the JSON file is malformed', async () => {
+            const file = new File(['not valid json{'], 'backup.json', { type: 'application/json' });
+
+            window.handleImportFile(file);
+            await flushPromises();
+            await flushPromises();
+
+            expect(global.alert).toHaveBeenCalledWith(expect.stringContaining('Import failed'));
         });
     });
 });

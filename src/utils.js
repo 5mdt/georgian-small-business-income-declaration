@@ -19,6 +19,8 @@ export const ERROR_MESSAGES = {
     CORRUPTED_DATA: 'Data storage corrupted. Resetting to defaults.',
     QUOTA_EXCEEDED: 'Storage quota exceeded. Please export and clear old data.',
     INVALID_CSV: 'Invalid CSV format. Missing required columns.',
+    INVALID_USERS_CSV: 'Invalid CSV format. Missing required user columns.',
+    INVALID_BACKUP: 'Invalid backup file. Expected a JSON export from this app.',
     API_ERROR: 'Failed to fetch exchange rates. Please try again.',
     NO_CURRENCY_DATA: 'No valid currency data available.',
     CURRENCY_NOT_FOUND: 'Selected currency not found.'
@@ -272,6 +274,22 @@ export function validateCSVHeader(header) {
 
     if (missingColumns.length > 0) {
         throw new Error(ERROR_MESSAGES.INVALID_CSV);
+    }
+    return true;
+}
+
+/**
+ * Validates a users CSV header.
+ * @param {string} header - CSV header line
+ * @returns {boolean} True if valid
+ * @throws {Error} If required columns are missing
+ */
+export function validateUsersCSVHeader(header) {
+    const requiredColumns = ['User ID', 'User Name', 'Taxpayer ID'];
+    const missingColumns = requiredColumns.filter(col => !header.includes(col));
+
+    if (missingColumns.length > 0) {
+        throw new Error(ERROR_MESSAGES.INVALID_USERS_CSV);
     }
     return true;
 }

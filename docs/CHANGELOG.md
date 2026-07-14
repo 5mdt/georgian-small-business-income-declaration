@@ -1,5 +1,27 @@
 # Changelog
 
+## v1.4.0 2026-07-14
+
+- T4G-0020: Export and import now go through modals instead of one-shot
+  toolbar buttons — Export offers transactions CSV, users CSV, or a full
+  JSON backup; Import auto-detects the file kind and adds an "Overwrite
+  data" toggle (default off) that switches from merge to wholesale
+  replace, with a warning recommending a backup first. Choosing a file
+  only stages it (shows the filename, enables "Start Import") rather than
+  importing immediately, so the user can review the overwrite toggle
+  first. The JSON backup's
+  contents depend on the stored data schema version: `users`/
+  `transactions`/`t4g_*` keys at schema `1` (or missing, today's only real
+  case), or just `t4g_*` keys at any other version — exchange-rate cache
+  and UI settings (theme, add-transaction checkbox) are never included.
+  Folds in and retires the old T4G-0010 (CSV export) and T4G-0011 (CSV
+  import) docs. The T4G-0019 migration modal's "Download backup" now opens
+  this shared Export modal instead of a direct CSV download. Every export
+  is also now tagged with the schema version of the data being exported
+  (read from stored `t4g_dataSchemaVersion`), not the running code's
+  `DATA_SCHEMA_VERSION` — fixing a bug where a backup taken before a
+  pending migration was mislabeled as already-migrated.
+
 ## v1.3.0 2026-07-14
 
 - T4G-0019: Added a data schema version, tracked separately from the app

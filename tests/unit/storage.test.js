@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { getStorage, getFromStorage, saveToStorage, removeFromStorage } from '../../src/storage.js';
+import { getStorage, getFromStorage, saveToStorage, removeFromStorage, getAllStorageKeys } from '../../src/storage.js';
 
 // Unlike the code it replaces, this file exercises the *real* storage
 // module (src/storage.js) instead of re-implementing the fallback logic
@@ -94,6 +94,29 @@ describe('saveToStorage', () => {
         expect(result).toBe(false);
         expect(alertSpy).not.toHaveBeenCalled();
         expect(console.error).toHaveBeenCalled();
+    });
+});
+
+describe('getAllStorageKeys', () => {
+    beforeEach(() => {
+        global.localStorage.clear();
+    });
+
+    it('returns every key written via saveToStorage', () => {
+        saveToStorage('users', [{ id: 'u1' }]);
+        saveToStorage('transactions', []);
+        saveToStorage('themePreference', 'dark');
+
+        expect(getAllStorageKeys().sort()).toEqual(['themePreference', 'transactions', 'users']);
+    });
+
+    it('returns an empty array when storage is empty', () => {
+        expect(getAllStorageKeys()).toEqual([]);
+    });
+
+    it('reads from an explicitly passed storage backend', () => {
+        const fakeStorage = { length: 2, key: (i) => ['a', 'b'][i] };
+        expect(getAllStorageKeys(fakeStorage)).toEqual(['a', 'b']);
     });
 });
 

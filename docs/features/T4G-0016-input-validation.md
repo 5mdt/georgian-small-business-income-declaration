@@ -21,7 +21,7 @@ before they're stored or used in a calculation.
 
 These gate every write path: `loadTransactions`/`addTransactionToStorage`
 (`src/transactions.js`), `loadUsers`/`updateUserInStorage` (`src/users.js`),
-and CSV row import (`validateCSVRow`, [[T4G-0011]]) all reject invalid data
+and CSV row import (`validateCSVRow`, [[T4G-0020]]) all reject invalid data
 rather than persisting it.
 
 ## Testing
