@@ -7,7 +7,7 @@ A static web application for Georgian small business owners to track foreign cur
 ![CSS3](https://img.shields.io/badge/CSS3-1572B6?logo=css3&logoColor=white)
 ![Vanilla JS](https://img.shields.io/badge/JavaScript-Vanilla-F7DF1E?logo=javascript&logoColor=black)
 
-![screenshot](./assets/Screenshot_2025-10-05_at_16-33-48_Currency_to_GEL_Converter.png "Screenshot")
+![screenshot](./assets/Screenshot_Combined.png "Screenshot")
 
 ## Features
 

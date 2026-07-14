@@ -1117,8 +1117,8 @@ function loadDemoData() {
         return;
     }
 
-    // Fetch and load demo-data.csv
-    fetch('demo-data.csv')
+    // Fetch and load assets/demo-data.csv
+    fetch('assets/demo-data.csv')
         .then(response => {
             if (!response.ok) {
                 throw new Error('Failed to load demo data file');
@@ -1128,7 +1128,7 @@ function loadDemoData() {
         .then(csvContent => {
             // Create a mock File object from the CSV content
             const blob = new Blob([csvContent], { type: 'text/csv' });
-            const file = new File([blob], 'demo-data.csv', { type: 'text/csv' });
+            const file = new File([blob], 'assets/demo-data.csv', { type: 'text/csv' });
 
             // Use existing importFromCSV function
             importFromCSV(file);

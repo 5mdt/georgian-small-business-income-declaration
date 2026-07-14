@@ -7,7 +7,6 @@
 - Local storage key prefix for data.
 - Add pop-up hints on buttons.
 - Hide/grey out "Load Demo Data" button when transactions exist.
-- Bundle all JS, HTML, CSS into one request, minifying code and removing all comments for better compression.
 - Move user management block to sidebar.
 - Inform if the currency API is limited/unavailable.
 - Option to save a transaction even if the exchange rate can't be retrieved.

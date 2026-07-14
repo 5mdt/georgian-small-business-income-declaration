@@ -20,6 +20,9 @@ npm run lint:fix
 
 # Check JavaScript syntax
 node --check script.js
+
+# Regenerate README/assets screenshots (one-time: npx playwright install chromium)
+npm run screenshots
 ```
 
 `pre-commit` (`.pre-commit-config.yaml`) also runs generic hygiene checks

@@ -61,7 +61,7 @@ in `docs/FRD.md`.
 
 ## API Response Schema
 
-Defined in `currency-rates-schema.json`:
+Defined in `docs/currency-rates-schema.json`:
 ```javascript
 [{
   "date": "2025-03-29T00:00:00",

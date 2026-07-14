@@ -4,12 +4,17 @@
   "description": "Currency to GEL Converter for Georgian small business owners",
   "type": "module",
   "scripts": {
+    "build:vite": "vite build",
+    "build:docs": "mkdir -p dist/docs dist/assets && cp docs/CHANGELOG.md dist/docs/ && cp assets/demo-data.csv dist/assets/",
+    "build:minify": "html-minifier-terser dist/index.html --collapse-whitespace --remove-comments --remove-redundant-attributes --remove-script-type-attributes --remove-style-link-type-attributes --minify-css true --minify-js true -o dist/index.html",
+    "build": "npm run build:vite && npm run build:docs && npm run build:minify",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint *.js src/**/*.js tests/**/*.js",
-    "lint:fix": "eslint *.js src/**/*.js tests/**/*.js --fix"
+    "lint:fix": "eslint *.js src/**/*.js tests/**/*.js --fix",
+    "screenshots": "node scripts/screenshots.mjs"
   },
   "keywords": [
     "currency",
@@ -21,11 +26,16 @@
   "author": "",
   "license": "GPL-3.0",
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@testing-library/dom": "^10.4.0",
-    "@vitest/coverage-v8": "^2.1.8",
-    "@vitest/ui": "^2.1.8",
+    "@vitest/coverage-v8": "^4.1.10",
+    "@vitest/ui": "^4.1.10",
+    "esbuild": "^0.28.1",
     "eslint": "^9.17.0",
+    "html-minifier-terser": "^7.2.0",
     "jsdom": "^25.0.1",
-    "vitest": "^2.1.8"
+    "vite": "^8.1.4",
+    "vite-plugin-singlefile": "^2.3.3",
+    "vitest": "^4.1.10"
   }
 }

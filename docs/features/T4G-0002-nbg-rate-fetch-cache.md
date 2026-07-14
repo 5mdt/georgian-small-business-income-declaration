@@ -24,7 +24,7 @@ same date don't re-fetch.
   (`validateCurrencyResponse`) and finds the matching currency, throwing
   `CURRENCY_NOT_FOUND` if absent.
 
-Response schema is documented in `currency-rates-schema.json`. `quantity`
+Response schema is documented in `docs/currency-rates-schema.json`. `quantity`
 matters: some currencies (e.g. JPY) are quoted per 100 units, so conversion
 divides by `quantity` ([[T4G-0001]]).
 

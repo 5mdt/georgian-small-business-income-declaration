@@ -31,8 +31,13 @@ const sampleNbgResponse = [{
     ]
 }];
 
+// jsdom's FileReader (readAsText etc.) resolves via two nested
+// setImmediate() calls, not a timer - setTimeout(fn, 0) races
+// setImmediate() non-deterministically outside an I/O callback, which
+// made FileReader-driven tests flaky. setImmediate() matches jsdom's
+// actual scheduling and reliably drains it.
 function flushPromises() {
-    return new Promise(resolve => setTimeout(resolve, 0));
+    return new Promise(resolve => setImmediate(resolve));
 }
 
 function fillConversionForm({ date = '2025-01-15', currency = 'USD', amount = '100', addAsTransaction = false, userId } = {}) {

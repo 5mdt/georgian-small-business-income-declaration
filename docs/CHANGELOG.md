@@ -80,7 +80,7 @@
   `sortTransactions` now breaks ties deterministically by `timestamp` then
   `id` (following `sortDirection`), matching YTD accumulation order instead
   of arbitrary storage order.
-- T4G-0012: Added a second same-date transaction to `demo-data.csv`
+- T4G-0012: Added a second same-date transaction to `assets/demo-data.csv`
   (2025-01-15, Nino Beridze) so the same-date tie-break is demonstrable via
   "Load Demo Data".
 
