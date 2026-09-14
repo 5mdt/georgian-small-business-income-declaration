@@ -7,9 +7,9 @@ import {
     generateUserId,
     generateTransactionId,
     convertToGEL,
-    precalculateAllYTD,
     calculateYTDForTransaction,
-    findLastMonthTransactionIds,
+    calculateMonthlyYTDByUser,
+    groupTransactionsByMonthAndUser,
     buildUserLookupMap,
     createDefaultUser,
     debounce,
@@ -734,7 +734,6 @@ function buildTransactionTableHeader() {
                 <th onclick="toggleSort('amount')" class="sortable">Amount${getSortIndicator('amount')}</th>
                 <th>Rate</th>
                 <th onclick="toggleSort('gel')" class="sortable">GEL Amount${getSortIndicator('gel')}</th>
-                <th onclick="toggleSort('ytd')" class="sortable">YTD Income${getSortIndicator('ytd')}</th>
                 <th>Comment</th>
                 <th>Actions</th>
             </tr>
@@ -742,15 +741,12 @@ function buildTransactionTableHeader() {
     `;
 }
 
-function buildTransactionTableRow(transaction, userMap, ytdCache, lastMonthIds) {
+function buildTransactionTableRow(transaction, userMap) {
     const user = userMap.get(transaction.userId);
     const userName = user ? user.name : 'Unknown';
-    const ytdIncome = ytdCache.get(transaction.id) || 0;
     const currencySymbol = getCurrencySymbol(transaction.currencyCode);
     const commentId = `comment-${transaction.id}`;
     const rate = (transaction.rate / transaction.quantity).toFixed(4);
-    const ytdText = `₾ ${formatCurrency(ytdIncome)}`;
-    const ytdCell = lastMonthIds.has(transaction.id) ? `<strong>${ytdText}</strong>` : ytdText;
 
     return `
         <tr>
@@ -760,7 +756,6 @@ function buildTransactionTableRow(transaction, userMap, ytdCache, lastMonthIds) 
             <td>${currencySymbol} ${formatCurrency(transaction.amount)}</td>
             <td>${rate}</td>
             <td>₾ ${formatCurrency(transaction.convertedGEL)}</td>
-            <td>${ytdCell}</td>
             <td>
                 <input type="text"
                         id="${commentId}"
@@ -776,20 +771,50 @@ function buildTransactionTableRow(transaction, userMap, ytdCache, lastMonthIds) 
     `;
 }
 
+function buildMonthGroupRow(month) {
+    const label = new Date(`${month}-01T00:00:00`).toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+    return `
+        <tr class="month-group-row">
+            <td colspan="8">${sanitizeInput(label)}</td>
+        </tr>
+    `;
+}
+
+function buildUserSummaryRow(userName, month, ytdIncome) {
+    const monthLabel = new Date(`${month}-01T00:00:00`).toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
+    return `
+        <tr class="ytd-summary-row">
+            <td colspan="8">${sanitizeInput(userName)} — YTD as of ${monthLabel}: ₾ ${formatCurrency(ytdIncome)}</td>
+        </tr>
+    `;
+}
+
 function buildTransactionTableFooter(totalGEL) {
     return `
         <tfoot>
             <tr>
                 <td colspan="5"><strong>Total GEL:</strong></td>
-                <td colspan="4"><strong>₾ ${formatCurrency(totalGEL)}</strong></td>
+                <td colspan="3"><strong>₾ ${formatCurrency(totalGEL)}</strong></td>
             </tr>
         </tfoot>
     `;
 }
 
-function buildTransactionTable(transactions, userMap, ytdCache, filterStatus, lastMonthIds) {
+function buildTransactionTable(transactions, userMap, monthlyYTD, filterStatus, sortDirection) {
     const header = buildTransactionTableHeader();
-    const rows = transactions.map(t => buildTransactionTableRow(t, userMap, ytdCache, lastMonthIds)).join('');
+    const groups = groupTransactionsByMonthAndUser(transactions, userMap, sortDirection);
+
+    const rows = groups.map(({ month, users }) => {
+        const monthRow = buildMonthGroupRow(month);
+        const userRows = users.map(({ userId, userName, transactions: userTransactions }) => {
+            const ytdIncome = monthlyYTD.get(`${userId}_${month}`) || 0;
+            const summaryRow = buildUserSummaryRow(userName, month, ytdIncome);
+            const txRows = userTransactions.map(t => buildTransactionTableRow(t, userMap)).join('');
+            return summaryRow + txRows;
+        }).join('');
+        return monthRow + userRows;
+    }).join('');
+
     const totalGEL = transactions.reduce((sum, t) => sum + t.convertedGEL, 0);
     const footer = buildTransactionTableFooter(totalGEL);
 
@@ -816,14 +841,13 @@ function renderTransactionList() {
 
     const users = loadUsers();
     const userMap = buildUserLookupMap(users);
-    const ytdCache = precalculateAllYTD(allTransactions);
-    const lastMonthIds = findLastMonthTransactionIds(allTransactions);
+    const monthlyYTD = calculateMonthlyYTDByUser(allTransactions);
 
     let transactions = applyFilters(allTransactions, filterState);
-    transactions = sortTransactions(transactions, userMap, ytdCache, filterState);
+    transactions = sortTransactions(transactions, userMap, filterState);
 
     const filterStatus = `Showing ${transactions.length} of ${allTransactions.length} transactions`;
-    const tableHTML = buildTransactionTable(transactions, userMap, ytdCache, filterStatus, lastMonthIds);
+    const tableHTML = buildTransactionTable(transactions, userMap, monthlyYTD, filterStatus, filterState.sortDirection);
 
     transactionListDiv.innerHTML = tableHTML;
 }
@@ -859,11 +883,10 @@ function exportToCSV() {
 
     const users = loadUsers();
     const userMap = buildUserLookupMap(users);
-    const ytdCache = precalculateAllYTD(allTransactions);
 
     // Apply current filters
     let transactions = applyFilters(allTransactions, filterState);
-    transactions = sortTransactions(transactions, userMap, ytdCache, filterState);
+    transactions = sortTransactions(transactions, userMap, filterState);
 
     if (transactions.length === 0) {
         alert('No transactions to export with current filters.');

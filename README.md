@@ -41,7 +41,7 @@ section.
 See [Contributing](./docs/CONTRIBUTING.md) for prerequisites, code rules,
 and deployment.
 
-This project follows [Docs-Driven Development](./docs/DDD.md).
+This project follows [Docs-Driven Development](./docs/DOCS-DRIVEN-DEVELOPMENT.md).
 
 ## Disclaimer
 

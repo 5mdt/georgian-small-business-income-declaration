@@ -354,15 +354,17 @@ describe('App integration (real index.html + script.js)', () => {
             await clickConvert();
         }
 
+        const transactionRowSelector = '#transactionList tbody tr:not(.month-group-row):not(.ytd-summary-row) td:first-child';
+
         it('sorts newest-first by default (date desc)', () => {
-            const dates = Array.from(document.querySelectorAll('#transactionList tbody tr td:first-child'))
+            const dates = Array.from(document.querySelectorAll(transactionRowSelector))
                 .map(td => td.textContent);
             expect(dates[0]).toBe('2025-03-01');
         });
 
         it('toggles to oldest-first when the Date header is clicked twice', () => {
             window.toggleSort('date'); // still 'date' column -> flips asc/desc from current 'desc' -> asc
-            const dates = Array.from(document.querySelectorAll('#transactionList tbody tr td:first-child'))
+            const dates = Array.from(document.querySelectorAll(transactionRowSelector))
                 .map(td => td.textContent);
             expect(dates[0]).toBe('2025-01-01');
         });

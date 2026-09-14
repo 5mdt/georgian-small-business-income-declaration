@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.8.0 2026-09-14
+
+- T4G-0008: Replaced the per-row YTD Income column with one highlighted
+  summary row per user per month, shown above that user's transactions for
+  the month. The transaction table is now grouped by month then by user
+  (`groupTransactionsByMonthAndUser` in `src/utils.js`); the summary figure
+  is each user's running YTD income through that month's end
+  (`calculateMonthlyYTDByUser`, replacing `findLastMonthTransactionIds`).
+  Removed the `ytd` sort column since YTD is no longer a per-transaction
+  value.
+
 ## v1.7.0 2026-07-14
 
 - T4G-0008: The YTD Income value is now bold only on each user's last

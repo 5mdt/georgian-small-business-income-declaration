@@ -707,10 +707,6 @@ tbody tr {
   transition: background-color 0.15s ease;
 }
 
-tbody tr:nth-child(even) {
-  background-color: var(--bg-secondary);
-}
-
 tbody tr:hover {
   background-color: var(--bg-tertiary);
 }
@@ -721,6 +717,27 @@ tfoot td {
   background-color: var(--accent-primary);
   color: var(--text-inverse);
   border-top: 2px solid var(--border-color);
+}
+
+.month-group-row td {
+  padding: 10px 12px;
+  font-weight: 700;
+  background-color: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border-bottom: 2px solid var(--border-color);
+}
+
+.ytd-summary-row td {
+  padding: 10px 12px;
+  font-weight: 600;
+  background-color: var(--bg-secondary);
+  color: var(--accent-primary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.month-group-row:hover td,
+.ytd-summary-row:hover td {
+  background-color: var(--bg-secondary);
 }
 
 .sortable {

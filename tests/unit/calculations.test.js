@@ -3,7 +3,8 @@ import {
     convertToGEL,
     calculateYTDForTransaction,
     precalculateAllYTD,
-    findLastMonthTransactionIds
+    calculateMonthlyYTDByUser,
+    groupTransactionsByMonthAndUser
 } from '../../src/utils.js';
 
 describe('Currency Conversion', () => {
@@ -365,68 +366,65 @@ describe('YTD Precalculation - Optimized', () => {
     });
 });
 
-describe('Last-of-month highlight - findLastMonthTransactionIds', () => {
-    it('flags the only transaction in a month', () => {
+describe('Monthly YTD by user - calculateMonthlyYTDByUser', () => {
+    it('reports the running total for the only transaction in a month', () => {
         const transactions = [
             { id: 'tx1', userId: 'user1', date: '2025-01-15', currencyCode: 'USD', amount: 100, convertedGEL: 287.5, timestamp: '1000' }
         ];
 
-        const ids = findLastMonthTransactionIds(transactions);
+        const monthlyYTD = calculateMonthlyYTDByUser(transactions);
 
-        expect(ids).toBeInstanceOf(Set);
-        expect(ids.has('tx1')).toBe(true);
-        expect(ids.size).toBe(1);
+        expect(monthlyYTD).toBeInstanceOf(Map);
+        expect(monthlyYTD.get('user1_2025-01')).toBe(287.5);
+        expect(monthlyYTD.size).toBe(1);
     });
 
-    it('flags only the latest date within a month, not earlier ones', () => {
+    it('uses the running total through the latest date within a month', () => {
         const transactions = [
             { id: 'tx1', userId: 'user1', date: '2025-01-05', currencyCode: 'USD', amount: 100, convertedGEL: 100, timestamp: '1000' },
             { id: 'tx2', userId: 'user1', date: '2025-01-15', currencyCode: 'USD', amount: 100, convertedGEL: 100, timestamp: '2000' },
             { id: 'tx3', userId: 'user1', date: '2025-01-28', currencyCode: 'USD', amount: 100, convertedGEL: 100, timestamp: '3000' }
         ];
 
-        const ids = findLastMonthTransactionIds(transactions);
+        const monthlyYTD = calculateMonthlyYTDByUser(transactions);
 
-        expect([...ids]).toEqual(['tx3']);
+        expect(monthlyYTD.get('user1_2025-01')).toBe(300);
     });
 
-    // Same tie-break as sortTransactions (src/filters.js): date, then
-    // timestamp, then id - see the "fix sorting bug" commit.
-    it('breaks a same-date tie by timestamp', () => {
+    it('sums every transaction dated within the month, regardless of order', () => {
         const transactions = [
             { id: 'tx1', userId: 'user1', date: '2025-01-15', currencyCode: 'USD', amount: 100, convertedGEL: 100, timestamp: '2025-01-15T09:00:00.000Z' },
             { id: 'tx2', userId: 'user1', date: '2025-01-15', currencyCode: 'EUR', amount: 50, convertedGEL: 155, timestamp: '2025-01-15T16:45:00.000Z' }
         ];
 
-        const ids = findLastMonthTransactionIds(transactions);
+        const monthlyYTD = calculateMonthlyYTDByUser(transactions);
 
-        expect([...ids]).toEqual(['tx2']);
+        expect(monthlyYTD.get('user1_2025-01')).toBe(255);
     });
 
-    it('falls back to id when timestamps are equal or missing', () => {
+    it('sums same-date transactions with no timestamp/id ordering needed', () => {
         const transactions = [
             { id: 'tb', userId: 'user1', date: '2025-01-15', currencyCode: 'USD', amount: 100, convertedGEL: 100 },
             { id: 'ta', userId: 'user1', date: '2025-01-15', currencyCode: 'EUR', amount: 50, convertedGEL: 155 }
         ];
 
-        const ids = findLastMonthTransactionIds(transactions);
+        const monthlyYTD = calculateMonthlyYTDByUser(transactions);
 
-        expect([...ids]).toEqual(['tb']);
+        expect(monthlyYTD.get('user1_2025-01')).toBe(255);
     });
 
     it('tracks each user independently within the same month', () => {
         const transactions = [
             { id: 'tx1', userId: 'user1', date: '2025-01-05', currencyCode: 'USD', amount: 100, convertedGEL: 100, timestamp: '1000' },
             { id: 'tx2', userId: 'user1', date: '2025-01-20', currencyCode: 'USD', amount: 100, convertedGEL: 100, timestamp: '2000' },
-            { id: 'tx3', userId: 'user2', date: '2025-01-10', currencyCode: 'USD', amount: 100, convertedGEL: 100, timestamp: '3000' }
+            { id: 'tx3', userId: 'user2', date: '2025-01-10', currencyCode: 'USD', amount: 100, convertedGEL: 50, timestamp: '3000' }
         ];
 
-        const ids = findLastMonthTransactionIds(transactions);
+        const monthlyYTD = calculateMonthlyYTDByUser(transactions);
 
-        expect(ids.has('tx2')).toBe(true); // user1's last in January
-        expect(ids.has('tx3')).toBe(true); // user2's only transaction in January
-        expect(ids.has('tx1')).toBe(false);
-        expect(ids.size).toBe(2);
+        expect(monthlyYTD.get('user1_2025-01')).toBe(200); // user1's total through last in January
+        expect(monthlyYTD.get('user2_2025-01')).toBe(50); // user2's only transaction in January
+        expect(monthlyYTD.size).toBe(2);
     });
 
     it('tracks each calendar month independently, including across years', () => {
@@ -436,13 +434,14 @@ describe('Last-of-month highlight - findLastMonthTransactionIds', () => {
             { id: 'tx3', userId: 'user1', date: '2025-02-10', currencyCode: 'USD', amount: 100, convertedGEL: 100, timestamp: '3000' }
         ];
 
-        const ids = findLastMonthTransactionIds(transactions);
+        const monthlyYTD = calculateMonthlyYTDByUser(transactions);
 
-        // Same month number (January) in two different years is two groups.
-        expect(ids.has('tx1')).toBe(true);
-        expect(ids.has('tx2')).toBe(true);
-        expect(ids.has('tx3')).toBe(true);
-        expect(ids.size).toBe(3);
+        // Same month number (January) in two different years is two groups,
+        // and the year resets the running total for 2025.
+        expect(monthlyYTD.get('user1_2024-01')).toBe(100);
+        expect(monthlyYTD.get('user1_2025-01')).toBe(100);
+        expect(monthlyYTD.get('user1_2025-02')).toBe(200);
+        expect(monthlyYTD.size).toBe(3);
     });
 
     it('skips invalid transactions', () => {
@@ -451,14 +450,81 @@ describe('Last-of-month highlight - findLastMonthTransactionIds', () => {
             { id: 'invalid', userId: 'user1' }
         ];
 
-        const ids = findLastMonthTransactionIds(transactions);
+        const monthlyYTD = calculateMonthlyYTDByUser(transactions);
 
-        expect([...ids]).toEqual(['tx1']);
+        expect(monthlyYTD.get('user1_2025-01')).toBe(100);
+        expect(monthlyYTD.size).toBe(1);
     });
 
-    it('returns an empty set for an empty transaction list', () => {
-        const ids = findLastMonthTransactionIds([]);
-        expect(ids).toBeInstanceOf(Set);
-        expect(ids.size).toBe(0);
+    it('returns an empty map for an empty transaction list', () => {
+        const monthlyYTD = calculateMonthlyYTDByUser([]);
+        expect(monthlyYTD).toBeInstanceOf(Map);
+        expect(monthlyYTD.size).toBe(0);
+    });
+});
+
+describe('Grouping - groupTransactionsByMonthAndUser', () => {
+    const userMap = new Map([
+        ['user1', { id: 'user1', name: 'Bob' }],
+        ['user2', { id: 'user2', name: 'Alice' }]
+    ]);
+
+    it('orders months descending for sortDirection desc', () => {
+        const transactions = [
+            { id: 'tx1', userId: 'user1', date: '2025-01-10' },
+            { id: 'tx2', userId: 'user1', date: '2025-03-10' },
+            { id: 'tx3', userId: 'user1', date: '2025-02-10' }
+        ];
+
+        const groups = groupTransactionsByMonthAndUser(transactions, userMap, 'desc');
+
+        expect(groups.map(g => g.month)).toEqual(['2025-03', '2025-02', '2025-01']);
+    });
+
+    it('orders months ascending for sortDirection asc', () => {
+        const transactions = [
+            { id: 'tx1', userId: 'user1', date: '2025-01-10' },
+            { id: 'tx2', userId: 'user1', date: '2025-03-10' },
+            { id: 'tx3', userId: 'user1', date: '2025-02-10' }
+        ];
+
+        const groups = groupTransactionsByMonthAndUser(transactions, userMap, 'asc');
+
+        expect(groups.map(g => g.month)).toEqual(['2025-01', '2025-02', '2025-03']);
+    });
+
+    it('orders users by display name within a month, regardless of userId', () => {
+        const transactions = [
+            { id: 'tx1', userId: 'user1', date: '2025-01-10' }, // Bob
+            { id: 'tx2', userId: 'user2', date: '2025-01-15' }  // Alice
+        ];
+
+        const groups = groupTransactionsByMonthAndUser(transactions, userMap, 'desc');
+
+        expect(groups).toHaveLength(1);
+        expect(groups[0].users.map(u => u.userName)).toEqual(['Alice', 'Bob']);
+    });
+
+    it('keeps a user\'s transactions in their incoming order', () => {
+        const tx1 = { id: 'tx1', userId: 'user1', date: '2025-01-20' };
+        const tx2 = { id: 'tx2', userId: 'user1', date: '2025-01-05' };
+        const transactions = [tx1, tx2];
+
+        const groups = groupTransactionsByMonthAndUser(transactions, userMap, 'desc');
+
+        expect(groups[0].users[0].transactions).toEqual([tx1, tx2]);
+    });
+
+    it('falls back to "Unknown" for a userId missing from userMap', () => {
+        const transactions = [{ id: 'tx1', userId: 'ghost', date: '2025-01-10' }];
+
+        const groups = groupTransactionsByMonthAndUser(transactions, userMap, 'desc');
+
+        expect(groups[0].users[0].userName).toBe('Unknown');
+    });
+
+    it('returns an empty array for an empty transaction list', () => {
+        const groups = groupTransactionsByMonthAndUser([], userMap, 'desc');
+        expect(groups).toEqual([]);
     });
 });

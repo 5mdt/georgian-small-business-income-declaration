@@ -80,15 +80,14 @@ describe('sortTransactions', () => {
         ['u1', { id: 'u1', name: 'Zoe' }],
         ['u2', { id: 'u2', name: 'Alice' }]
     ]);
-    const ytdCache = new Map([['t1', 287.5], ['t2', 155], ['t3', 907.5]]);
 
     it('sorts by date descending by default', () => {
-        const sorted = sortTransactions(transactions, userMap, ytdCache, createDefaultFilterState());
+        const sorted = sortTransactions(transactions, userMap, createDefaultFilterState());
         expect(sorted.map(t => t.id)).toEqual(['t3', 't2', 't1']);
     });
 
     it('sorts by date ascending when direction is asc', () => {
-        const sorted = sortTransactions(transactions, userMap, ytdCache, {
+        const sorted = sortTransactions(transactions, userMap, {
             ...createDefaultFilterState(),
             sortDirection: 'asc'
         });
@@ -96,7 +95,7 @@ describe('sortTransactions', () => {
     });
 
     it('sorts by user name via the user strategy', () => {
-        const sorted = sortTransactions(transactions, userMap, ytdCache, {
+        const sorted = sortTransactions(transactions, userMap, {
             ...createDefaultFilterState(),
             sortColumn: 'user',
             sortDirection: 'asc'
@@ -106,7 +105,7 @@ describe('sortTransactions', () => {
     });
 
     it('sorts by amount', () => {
-        const sorted = sortTransactions(transactions, userMap, ytdCache, {
+        const sorted = sortTransactions(transactions, userMap, {
             ...createDefaultFilterState(),
             sortColumn: 'amount',
             sortDirection: 'asc'
@@ -115,7 +114,7 @@ describe('sortTransactions', () => {
     });
 
     it('sorts by GEL amount', () => {
-        const sorted = sortTransactions(transactions, userMap, ytdCache, {
+        const sorted = sortTransactions(transactions, userMap, {
             ...createDefaultFilterState(),
             sortColumn: 'gel',
             sortDirection: 'desc'
@@ -124,7 +123,7 @@ describe('sortTransactions', () => {
     });
 
     it('sorts by currency code', () => {
-        const sorted = sortTransactions(transactions, userMap, ytdCache, {
+        const sorted = sortTransactions(transactions, userMap, {
             ...createDefaultFilterState(),
             sortColumn: 'currency',
             sortDirection: 'asc'
@@ -132,17 +131,8 @@ describe('sortTransactions', () => {
         expect(sorted.map(t => t.currencyCode)).toEqual(['EUR', 'EUR', 'USD']);
     });
 
-    it('sorts by YTD income', () => {
-        const sorted = sortTransactions(transactions, userMap, ytdCache, {
-            ...createDefaultFilterState(),
-            sortColumn: 'ytd',
-            sortDirection: 'asc'
-        });
-        expect(sorted.map(t => t.id)).toEqual(['t2', 't1', 't3']);
-    });
-
     it('falls back to input order for an unknown sort column', () => {
-        const sorted = sortTransactions(transactions, userMap, ytdCache, {
+        const sorted = sortTransactions(transactions, userMap, {
             ...createDefaultFilterState(),
             sortColumn: 'nonexistent'
         });
@@ -151,7 +141,7 @@ describe('sortTransactions', () => {
 
     it('does not mutate the input array', () => {
         const copy = [...transactions];
-        sortTransactions(transactions, userMap, ytdCache, createDefaultFilterState());
+        sortTransactions(transactions, userMap, createDefaultFilterState());
         expect(transactions).toEqual(copy);
     });
 
@@ -164,10 +154,9 @@ describe('sortTransactions', () => {
             { id: 't3', userId: 'u1', currencyCode: 'EUR', date: '2025-03-01', amount: 200, convertedGEL: 620, timestamp: '2025-03-01T10:00:00.000Z' }
         ];
         const tiedUserMap = new Map([['u1', { id: 'u1', name: 'Zoe' }]]);
-        const tiedYtdCache = new Map([['t1', 287.5], ['t2', 442.5], ['t3', 1062.5]]);
 
         it('breaks same-date ties by timestamp ascending when sorting asc', () => {
-            const sorted = sortTransactions(tied, tiedUserMap, tiedYtdCache, {
+            const sorted = sortTransactions(tied, tiedUserMap, {
                 ...createDefaultFilterState(),
                 sortDirection: 'asc'
             });
@@ -175,7 +164,7 @@ describe('sortTransactions', () => {
         });
 
         it('breaks same-date ties by timestamp descending when sorting desc', () => {
-            const sorted = sortTransactions(tied, tiedUserMap, tiedYtdCache, {
+            const sorted = sortTransactions(tied, tiedUserMap, {
                 ...createDefaultFilterState(),
                 sortDirection: 'desc'
             });
@@ -183,8 +172,8 @@ describe('sortTransactions', () => {
         });
 
         it('is stable and deterministic across repeated sorts (same input order)', () => {
-            const first = sortTransactions(tied, tiedUserMap, tiedYtdCache, createDefaultFilterState());
-            const second = sortTransactions([...tied].reverse(), tiedUserMap, tiedYtdCache, createDefaultFilterState());
+            const first = sortTransactions(tied, tiedUserMap, createDefaultFilterState());
+            const second = sortTransactions([...tied].reverse(), tiedUserMap, createDefaultFilterState());
             expect(second.map(t => t.id)).toEqual(first.map(t => t.id));
         });
 
@@ -193,14 +182,13 @@ describe('sortTransactions', () => {
                 { id: 'tb', userId: 'u1', currencyCode: 'USD', date: '2025-01-10', amount: 100, convertedGEL: 287.5 },
                 { id: 'ta', userId: 'u1', currencyCode: 'EUR', date: '2025-01-10', amount: 50, convertedGEL: 155 }
             ];
-            const cache = new Map([['ta', 155], ['tb', 442.5]]);
-            const asc = sortTransactions(noTimestamp, tiedUserMap, cache, {
+            const asc = sortTransactions(noTimestamp, tiedUserMap, {
                 ...createDefaultFilterState(),
                 sortDirection: 'asc'
             });
             expect(asc.map(t => t.id)).toEqual(['ta', 'tb']);
 
-            const desc = sortTransactions(noTimestamp, tiedUserMap, cache, {
+            const desc = sortTransactions(noTimestamp, tiedUserMap, {
                 ...createDefaultFilterState(),
                 sortDirection: 'desc'
             });
@@ -212,7 +200,7 @@ describe('sortTransactions', () => {
 describe('SORT_STRATEGIES', () => {
     it('exposes a strategy for every sortable column', () => {
         expect(Object.keys(SORT_STRATEGIES).sort()).toEqual(
-            ['amount', 'currency', 'date', 'gel', 'user', 'ytd'].sort()
+            ['amount', 'currency', 'date', 'gel', 'user'].sort()
         );
     });
 });

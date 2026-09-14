@@ -60,23 +60,17 @@ export const SORT_STRATEGIES = {
     },
     currency: (a, b) => a.currencyCode.localeCompare(b.currencyCode),
     amount: (a, b) => a.amount - b.amount,
-    gel: (a, b) => a.convertedGEL - b.convertedGEL,
-    ytd: (a, b, userMap, ytdCache) => {
-        const ytdA = ytdCache.get(a.id) || 0;
-        const ytdB = ytdCache.get(b.id) || 0;
-        return ytdA - ytdB;
-    }
+    gel: (a, b) => a.convertedGEL - b.convertedGEL
 };
 
 /**
  * Sorts transactions per the current filter state's sortColumn/sortDirection.
  * @param {Array<Object>} transactions
  * @param {Map} userMap - user id -> user object
- * @param {Map} ytdCache - transaction id -> YTD total
  * @param {Object} filterState - { sortColumn, sortDirection }
  * @returns {Array<Object>} Sorted transactions (new array)
  */
-export function sortTransactions(transactions, userMap, ytdCache, filterState) {
+export function sortTransactions(transactions, userMap, filterState) {
     const sortStrategy = SORT_STRATEGIES[filterState.sortColumn];
     if (!sortStrategy) return [...transactions];
 
@@ -84,7 +78,7 @@ export function sortTransactions(transactions, userMap, ytdCache, filterState) {
     const sorted = [...transactions];
 
     sorted.sort((a, b) => {
-        const primary = sortStrategy(a, b, userMap, ytdCache);
+        const primary = sortStrategy(a, b, userMap);
         if (primary !== 0) return primary * direction;
         // Deterministic tie-break for equal primary values (e.g. multiple
         // transactions on the same date) so the order is stable and matches

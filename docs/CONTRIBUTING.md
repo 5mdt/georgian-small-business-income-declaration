@@ -48,7 +48,7 @@ commit.
 - **Date/amount validation caps**: years 2000-2100 (never in the future),
   amounts capped at `MAX_AMOUNT` (1,000,000,000). Full rules:
   `features/T4G-0016-input-validation.md`.
-- This project follows [Docs-Driven Development](DDD.md). New or changed
+- This project follows [Docs-Driven Development](DOCS-DRIVEN-DEVELOPMENT.md). New or changed
   behavior needs a `docs/features/T4G-NNNN-*.md` entry before/alongside the
   code.
 

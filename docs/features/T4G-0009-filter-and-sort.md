@@ -14,9 +14,11 @@ it by clicking any sortable column header.
 - `applyFilters(transactions, filterState)` — applies each active filter in
   sequence (user, currency, inclusive date range), returning a new array.
 - `SORT_STRATEGIES` — one comparator per sortable column (`date`, `user`,
-  `currency`, `amount`, `gel`, `ytd`); `user` and `ytd` need `userMap`/
-  `ytdCache` to resolve display values.
-- `sortTransactions(transactions, userMap, ytdCache, filterState)` — applies
+  `currency`, `amount`, `gel`); `user` needs `userMap` to resolve display
+  names. There is no `ytd` sort column — YTD is now a per-user monthly
+  summary row rather than a per-transaction value (see [[T4G-0008]]), so it
+  isn't a meaningful thing to sort individual rows by.
+- `sortTransactions(transactions, userMap, filterState)` — applies
   the strategy for `filterState.sortColumn`, honoring `sortDirection`. When
   the strategy returns a tie (e.g. multiple transactions on the same date),
   breaks it deterministically by `timestamp` then `id`, so equal-value rows

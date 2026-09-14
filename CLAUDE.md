@@ -12,7 +12,7 @@ commands.
 
 This project follows **Documentation → Tests → Code**, and `docs/FRD.md`
 (+ `docs/features/`) is the source of truth — it wins on conflict. Full
-methodology, directory layout, and workflow: `docs/DDD.md`.
+methodology, directory layout, and workflow: `docs/DOCS-DRIVEN-DEVELOPMENT.md`.
 
 - Keep docs short, precise, and HOW-focused (WHY is at most one sentence).
   Don't rewrite doc sections that didn't change. Omit template sections
@@ -34,7 +34,7 @@ methodology, directory layout, and workflow: `docs/DDD.md`.
 
 ## Docs
 
-- `docs/DDD.md` — the Docs-Driven Development methodology this project follows
+- `docs/DOCS-DRIVEN-DEVELOPMENT.md` — the Docs-Driven Development methodology this project follows
 - `docs/ARCHITECTURE.md` — components, data flow, storage schemas, gotchas
 - `docs/TESTING.md` — test structure, coverage rules, writing new tests
 - `docs/CONTRIBUTING.md` — prerequisites, code rules, deployment
@@ -43,3 +43,4 @@ methodology, directory layout, and workflow: `docs/DDD.md`.
   Testing, Status)
 - `docs/CHANGELOG.md` — reverse-chronological log of shipped changes
 - `docs/todo.md` — flat backlog of unpromoted ideas
+- `docs/bugs.md` — defects, quirks, tech debt, and chores on shipped behavior

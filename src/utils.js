@@ -217,37 +217,81 @@ export function precalculateAllYTD(transactions) {
     return ytdCache;
 }
 
-// Returns true if `a` sorts after `b` under the same deterministic
-// tie-break used by `sortTransactions` (src/filters.js): date, then
-// timestamp, then id.
-function isLaterTransaction(a, b) {
-    const byDate = a.date.localeCompare(b.date);
-    if (byDate !== 0) return byDate > 0;
-    const byTimestamp = (a.timestamp || '').localeCompare(b.timestamp || '');
-    if (byTimestamp !== 0) return byTimestamp > 0;
-    return a.id.localeCompare(b.id) > 0;
+/**
+ * Computes, for each user and calendar month, that user's YTD income as of
+ * the end of that month (i.e. their running total including every
+ * transaction dated in or before that month, within the same calendar
+ * year). Used to render a per-user summary row above each month's
+ * transactions instead of a per-transaction YTD value. Sums by date order
+ * only - unlike a per-transaction running total, a month-end total doesn't
+ * need a timestamp/id tie-break, since every transaction in the month is
+ * included regardless of order.
+ * @param {Array} transactions - All transactions
+ * @returns {Map<string, number>} userId_YYYY-MM -> YTD total through that month
+ */
+export function calculateMonthlyYTDByUser(transactions) {
+    const validTransactions = transactions.filter(tx => validateTransaction(tx));
+    const sorted = [...validTransactions].sort((a, b) => {
+        if (a.userId !== b.userId) return a.userId.localeCompare(b.userId);
+        return a.date.localeCompare(b.date);
+    });
+
+    const runningTotals = {};
+    const monthlyYTD = new Map();
+
+    for (const tx of sorted) {
+        const year = new Date(tx.date).getFullYear();
+        const yearKey = `${tx.userId}_${year}`;
+        runningTotals[yearKey] = (runningTotals[yearKey] || 0) + tx.convertedGEL;
+
+        const monthKey = `${tx.userId}_${tx.date.slice(0, 7)}`;
+        monthlyYTD.set(monthKey, runningTotals[yearKey]);
+    }
+
+    return monthlyYTD;
 }
 
 /**
- * Finds, for each user and calendar month, the id of that month's last
- * transaction (by date, tie-broken by timestamp then id - same order as
- * sortTransactions). Used to highlight the month-end YTD Income value.
- * @param {Array} transactions - All transactions
- * @returns {Set<string>} Ids of the last transaction in each userId+month group
+ * Groups transactions by calendar month, then by user, for table rendering.
+ * Months are ordered by their YYYY-MM key honoring sortDirection; users
+ * within a month are ordered by display name; a user's transactions keep
+ * the order they arrive in (already filtered/sorted by the caller).
+ * @param {Array} transactions - Filtered/sorted transactions to render
+ * @param {Map} userMap - user id -> user object
+ * @param {string} sortDirection - 'asc' or 'desc'
+ * @returns {Array<{month: string, users: Array<{userId: string, userName: string, transactions: Array}>}>}
  */
-export function findLastMonthTransactionIds(transactions) {
-    const validTransactions = transactions.filter(tx => validateTransaction(tx));
-    const lastByGroup = new Map();
+export function groupTransactionsByMonthAndUser(transactions, userMap, sortDirection) {
+    const monthGroups = new Map();
 
-    for (const tx of validTransactions) {
-        const key = `${tx.userId}_${tx.date.slice(0, 7)}`;
-        const current = lastByGroup.get(key);
-        if (!current || isLaterTransaction(tx, current)) {
-            lastByGroup.set(key, tx);
-        }
+    for (const tx of transactions) {
+        const month = tx.date.slice(0, 7);
+        if (!monthGroups.has(month)) monthGroups.set(month, new Map());
+        const usersInMonth = monthGroups.get(month);
+        if (!usersInMonth.has(tx.userId)) usersInMonth.set(tx.userId, []);
+        usersInMonth.get(tx.userId).push(tx);
     }
 
-    return new Set([...lastByGroup.values()].map(tx => tx.id));
+    const direction = sortDirection === 'asc' ? 1 : -1;
+    const months = [...monthGroups.keys()].sort((a, b) => a.localeCompare(b) * direction);
+
+    return months.map(month => {
+        const usersInMonth = monthGroups.get(month);
+        const userIds = [...usersInMonth.keys()].sort((a, b) => {
+            const nameA = userMap.get(a) ? userMap.get(a).name : '';
+            const nameB = userMap.get(b) ? userMap.get(b).name : '';
+            return nameA.localeCompare(nameB);
+        });
+
+        return {
+            month,
+            users: userIds.map(userId => ({
+                userId,
+                userName: userMap.get(userId) ? userMap.get(userId).name : 'Unknown',
+                transactions: usersInMonth.get(userId)
+            }))
+        };
+    });
 }
 
 /**
