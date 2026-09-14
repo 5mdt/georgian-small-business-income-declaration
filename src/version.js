@@ -7,7 +7,7 @@
 // runtime - bump this by hand alongside docs/CHANGELOG.md entries.
 
 // #T4G-0018
-export const APP_VERSION = '1.8.0';
+export const APP_VERSION = '1.9.0';
 
 // ===========================
 // Data Schema Version

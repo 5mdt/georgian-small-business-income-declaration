@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.9.0 2026-09-14
+
+- T4G-0008: The per-user monthly summary row now also shows that month's
+  own income alongside YTD (`Name — Mon YYYY: ₾ X · YTD: ₾ Y`), via new
+  `calculateMonthlyIncomeByUser` in `src/utils.js` and an updated
+  `buildUserSummaryRow` in `script.js`.
+
 ## v1.8.0 2026-09-14
 
 - T4G-0008: Replaced the per-row YTD Income column with one highlighted

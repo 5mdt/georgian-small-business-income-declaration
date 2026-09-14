@@ -270,6 +270,28 @@ export function calculateMonthlyYTDByUser(transactions) {
 }
 
 /**
+ * Computes, for each user and calendar month, that user's total GEL income
+ * within that month alone (not a running year total, unlike
+ * `calculateMonthlyYTDByUser`). Shown next to the YTD figure in the
+ * per-user summary row so the reader doesn't have to add up the month's
+ * transaction rows by hand. Order-independent, so no sort is needed.
+ * @param {Array} transactions - All transactions
+ * @returns {Map<string, number>} userId_YYYY-MM -> total GEL income in that month
+ */
+// #T4G-0008
+export function calculateMonthlyIncomeByUser(transactions) {
+    const validTransactions = transactions.filter(tx => validateTransaction(tx));
+    const monthlyIncome = new Map();
+
+    for (const tx of validTransactions) {
+        const monthKey = `${tx.userId}_${tx.date.slice(0, 7)}`;
+        monthlyIncome.set(monthKey, (monthlyIncome.get(monthKey) || 0) + tx.convertedGEL);
+    }
+
+    return monthlyIncome;
+}
+
+/**
  * Groups transactions by calendar month, then by user, for table rendering.
  * Months are ordered by their YYYY-MM key honoring sortDirection; users
  * within a month are ordered by display name; a user's transactions keep
