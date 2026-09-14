@@ -18,6 +18,7 @@ const CONFIG_PREFIX = 't4g_config_';
  * @param {string} prefix
  * @param {Storage} storageBackend
  */
+// #T4G-0014
 function removeByPrefix(prefix, storageBackend) {
     getAllStorageKeys(storageBackend)
         .filter(key => key.startsWith(prefix))
@@ -44,6 +45,7 @@ function removeByPrefix(prefix, storageBackend) {
  *   also sweeps sessionStorage for `t4g_config_` keys.
  * @returns {{cleared: Array<string>}} Which categories were actually cleared
  */
+// #T4G-0014
 export function clearData(selection) {
     const storage = getStorage();
 

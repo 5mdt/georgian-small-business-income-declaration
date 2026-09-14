@@ -11,6 +11,7 @@
  * Creates a fresh default filter/sort state.
  * @returns {Object}
  */
+// #T4G-0009
 export function createDefaultFilterState() {
     return {
         userId: 'all',
@@ -28,6 +29,7 @@ export function createDefaultFilterState() {
  * @param {Object} filterState - { userId, currencyCode, dateFrom, dateTo }
  * @returns {Array<Object>} Filtered transactions (new array)
  */
+// #T4G-0009
 export function applyFilters(transactions, filterState) {
     let filtered = [...transactions];
 
@@ -49,6 +51,7 @@ export function applyFilters(transactions, filterState) {
     return filtered;
 }
 
+// #T4G-0009
 export const SORT_STRATEGIES = {
     date: (a, b) => new Date(a.date) - new Date(b.date),
     user: (a, b, userMap) => {
@@ -70,6 +73,7 @@ export const SORT_STRATEGIES = {
  * @param {Object} filterState - { sortColumn, sortDirection }
  * @returns {Array<Object>} Sorted transactions (new array)
  */
+// #T4G-0009
 export function sortTransactions(transactions, userMap, filterState) {
     const sortStrategy = SORT_STRATEGIES[filterState.sortColumn];
     if (!sortStrategy) return [...transactions];
@@ -100,6 +104,7 @@ export function sortTransactions(transactions, userMap, filterState) {
  * @param {string} column - Column that was clicked
  * @returns {{sortColumn: string, sortDirection: string}}
  */
+// #T4G-0009
 export function computeNextSortState(currentState, column) {
     if (currentState.sortColumn === column) {
         return {

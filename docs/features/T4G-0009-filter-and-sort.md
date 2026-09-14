@@ -2,7 +2,12 @@
 
 **Tags:** #transactions #ui
 
-## Description
+## User Story
+
+As a small business owner with many transactions, I want to narrow and sort the
+table, so that I can find or review a specific subset quickly.
+
+## Behavior
 
 Narrows the transaction table by user, currency, and date range, and sorts
 it by clicking any sortable column header.
@@ -16,8 +21,9 @@ it by clicking any sortable column header.
 - `SORT_STRATEGIES` — one comparator per sortable column (`date`, `user`,
   `currency`, `amount`, `gel`); `user` needs `userMap` to resolve display
   names. There is no `ytd` sort column — YTD is now a per-user monthly
-  summary row rather than a per-transaction value (see [[T4G-0008]]), so it
-  isn't a meaningful thing to sort individual rows by.
+  summary row rather than a per-transaction value
+  (see [T4G-0008](T4G-0008-ytd-income-calculation.md)), so it isn't a
+  meaningful thing to sort individual rows by.
 - `sortTransactions(transactions, userMap, filterState)` — applies
   the strategy for `filterState.sortColumn`, honoring `sortDirection`. When
   the strategy returns a tie (e.g. multiple transactions on the same date),
@@ -37,19 +43,19 @@ headers.
 
 ## Testing
 
-### Human Testing
+### Human
 
 - Filter by user, currency, or date range — the table and "Showing X of Y"
   status update; combining filters narrows further.
 - Click "Date" header twice — sort direction toggles; click a different
   header — sorts by that column, descending by default.
 - "Clear Filters" resets all filters and sort to defaults.
-- Load demo data ([[T4G-0012]]) and toggle the Date header: Nino Beridze's
-  two 2025-01-15 rows keep a stable relative order (chronological by
-  timestamp when ascending, reverse when descending) instead of jumping
-  around.
+- Load demo data ([T4G-0012](T4G-0012-demo-data.md)) and toggle the Date
+  header: Nino Beridze's two 2025-01-15 rows keep a stable relative order
+  (chronological by timestamp when ascending, reverse when descending)
+  instead of jumping around.
 
-### Unit Testing
+### Unit
 
 `tests/unit/filters.test.js`: default state, each filter individually and
 combined, no-match case, non-mutation, every `SORT_STRATEGIES` column,
@@ -57,11 +63,11 @@ unknown-column fallback, `computeNextSortState` toggle/switch behavior,
 same-date tie-break (timestamp asc/desc, id fallback when timestamp is equal
 or missing, stability regardless of input order).
 
-### Integration Testing
+### Integration
 
 `tests/integration/app.test.js` (`sorting`, `filters`): default newest-first
 sort, toggling Date header twice, filtering the visible list by currency.
 
 ## Status
 
-Implemented.
+Implemented

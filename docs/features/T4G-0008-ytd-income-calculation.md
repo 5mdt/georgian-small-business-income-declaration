@@ -2,14 +2,19 @@
 
 **Tags:** #ytd #transactions
 
-## Description
+## User Story
+
+As a small business owner, I want to see my running total GEL income for the
+current calendar year, so that I know where I stand against any declaration
+threshold without adding it up by hand.
+
+## Behavior
 
 Tracks each user's running total of GEL income for the current calendar year.
 Rather than repeating that figure on every transaction row, the transaction
 table is grouped by month then by user, with one highlighted summary row per
-user per month showing their YTD income as of that month's end.
-
-### Example table layout
+user per month showing their YTD income as of that month's end. Transaction
+rows themselves carry no YTD cell.
 
 ```
 ┌────────────┬───────┬──────────┬──────────┬──────┬────────────┬─────────┬─────────┐
@@ -27,9 +32,6 @@ user per month showing their YTD income as of that month's end.
 └──────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-Transaction rows no longer carry a per-row YTD cell — only the summary row
-shows the figure, computed as of that month's end.
-
 ## Implementation
 
 `src/utils.js`:
@@ -38,40 +40,39 @@ shows the figure, computed as of that month's end.
   `userId` → `date` → `timestamp`, and accumulates a running total per
   `${userId}_${year}` key into a `Map` of transaction id → YTD value.
 - `calculateYTDForTransaction(transaction, allTransactions)` — single-
-  transaction version used during CSV export ([[T4G-0020]]), since export
-  may run over a filtered/re-sorted subset. Filters `allTransactions` to the
-  same user + calendar year + date ≤ target date, sorts by
-  `date` → `timestamp`, and sums until it reaches the target transaction
-  **by id** (not by re-comparing date+timestamp, which misattributes totals
-  when two transactions share both).
+  transaction version used during CSV export
+  ([T4G-0020](T4G-0020-backup-and-restore.md)), since export may run over a
+  filtered/re-sorted subset. Filters `allTransactions` to the same user +
+  calendar year + date ≤ target date, sorts by `date` → `timestamp`, and
+  sums until it reaches the target transaction **by id** (not by
+  re-comparing date+timestamp, which misattributes totals when two
+  transactions share both).
+- `calculateMonthlyYTDByUser(transactions)` — returns a
+  `Map<'${userId}_${YYYY-MM}', ytdValue>`, one entry per user/month group,
+  whose value is that user's running YTD total including every transaction
+  dated in or before that month within the calendar year. Sorts only by
+  `userId` → `date` (no timestamp/id tie-break needed, unlike
+  `precalculateAllYTD`) since a month-end total sums every transaction in
+  the month regardless of same-day order. Computed in
+  `renderTransactionList` over **all** transactions (not the
+  filtered/sorted subset), so a summary row always reflects the true
+  month-end total regardless of active filters.
+- `groupTransactionsByMonthAndUser(transactions, userMap, sortDirection)` —
+  turns the filtered/sorted transaction list into
+  `[{ month, users: [{ userId, userName, transactions }] }]`: months ordered
+  by `YYYY-MM` (honouring `sortDirection`), users ordered by display name
+  within a month, and each user's transactions kept in their incoming order.
 
-Both are consumed by `script.js` (`renderTransactionList`, `exportToCSV`).
-
-### Monthly per-user summary rows
-
-`calculateMonthlyYTDByUser(transactions)` (`src/utils.js`) returns a
-`Map<'${userId}_${YYYY-MM}', ytdValue>` — one entry per user/month group,
-whose value is that user's running YTD total including **every**
-transaction dated in or before that month within the calendar year. Sorts
-only by `userId` → `date` (no timestamp/id tie-break needed, unlike
-`precalculateAllYTD`) since a month-end total sums every transaction in the
-month regardless of same-day order. Computed in `renderTransactionList` over
-**all** transactions (not the filtered/sorted subset), so a summary row
-always reflects the true month-end total regardless of active filters.
-
-`groupTransactionsByMonthAndUser(transactions, userMap, sortDirection)`
-(`src/utils.js`) turns the filtered/sorted transaction list into
-`[{ month, users: [{ userId, userName, transactions }] }]`: months ordered
-by `YYYY-MM` (honouring `sortDirection`), users ordered by display name
-within a month, and each user's transactions kept in their incoming order.
-`buildTransactionTable` (`script.js`) walks this structure, emitting a
-month-group row, then one highlighted user-summary row (reading the YTD
+`buildTransactionTable` (`script.js`) walks the grouped structure, emitting
+a month-group row, then one highlighted user-summary row (reading the YTD
 value from `calculateMonthlyYTDByUser`) before that user's transaction rows.
-Transaction rows carry no YTD cell.
+
+Both `precalculateAllYTD` and `calculateYTDForTransaction` are consumed by
+`script.js` (`renderTransactionList`, `exportToCSV`).
 
 ## Testing
 
-### Human Testing
+### Human
 
 - Add several transactions for the same user across different dates in one
   year — the month's summary row shows the cumulative YTD through that
@@ -87,7 +88,7 @@ Transaction rows carry no YTD cell.
   updates it.
 - Transaction rows show no YTD value; only the summary row above them does.
 
-### Unit Testing
+### Unit
 
 `tests/unit/calculations.test.js` (`YTD Calculation - Single Transaction`,
 `YTD Precalculation - Optimized`): first/middle/last transaction, per-user
@@ -105,4 +106,4 @@ keep their incoming order within a user group, empty list.
 
 ## Status
 
-Implemented.
+Implemented

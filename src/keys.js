@@ -17,6 +17,7 @@
 // category convention and are left as-is - they're version-tracking
 // metadata, not app data/config/cache.
 
+// #T4G-0021
 export const STORAGE_KEYS = {
     transactions: 't4g_data_transactions',
     users: 't4g_data_users',
@@ -27,10 +28,12 @@ export const STORAGE_KEYS = {
 // Currency rate cache keys are date-suffixed (one per YYYY-MM-DD), so they
 // can't be a fixed entry in STORAGE_KEYS - callers build the full key as
 // `${CURRENCY_RATE_KEY_PREFIX}${date}`.
+// #T4G-0021
 export const CURRENCY_RATE_KEY_PREFIX = 't4g_cache_currencyRates_';
 
 // Collapsible-section state (sessionStorage, not localStorage - not part of
 // DATA_SCHEMA_VERSION/migrations.js, since sessionStorage doesn't persist
 // across browser sessions and has nothing to migrate). One key per section
 // id: `${COLLAPSIBLE_KEY_PREFIX}${sectionId}`.
+// #T4G-0013
 export const COLLAPSIBLE_KEY_PREFIX = 't4g_config_collapsible_';

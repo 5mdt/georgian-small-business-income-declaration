@@ -2,7 +2,12 @@
 
 **Tags:** #transactions
 
-## Description
+## User Story
+
+As a small business owner, I want to add, remove, and annotate individual income
+records, so that my transaction table reflects exactly what I actually received.
+
+## Behavior
 
 Add, remove, and comment on individual currency-conversion transactions,
 each attributed to a user and rendered in the transaction table.
@@ -10,9 +15,11 @@ each attributed to a user and rendered in the transaction table.
 ## Implementation
 
 `src/transactions.js`:
-- `loadTransactions()` reads `localStorage` key `transactions`
-  ([[T4G-0013]]), filtering out any entry that fails `validateTransaction`
-  ([[T4G-0016]]).
+- `loadTransactions()` reads `localStorage` key `t4g_data_transactions`
+  (`STORAGE_KEYS.transactions`, `src/keys.js`;
+  [T4G-0013](T4G-0013-local-storage-persistence.md)), filtering out any
+  entry that fails `validateTransaction`
+  ([T4G-0016](T4G-0016-input-validation.md)).
 - `addTransactionToStorage(transactionData)` validates then appends.
 - `removeTransactionFromStorage(id)` filters out one transaction by id.
 - `updateTransactionCommentInStorage(id, newComment)` sanitizes
@@ -32,7 +39,7 @@ each attributed to a user and rendered in the transaction table.
 
 ## Testing
 
-### Human Testing
+### Human
 
 - Convert an amount with "Add as Transaction" checked — it appears as a new
   row in the transaction table.
@@ -40,13 +47,13 @@ each attributed to a user and rendered in the transaction table.
   persists.
 - Click "🗑️" on a row — the transaction is removed from the table.
 
-### Unit Testing
+### Unit
 
 `tests/unit/transactions.test.js`: load (empty/valid/invalid-filtered/
 non-array), add (valid/invalid/accumulate), remove (targeted/no-op),
 update comment (found/not-found).
 
-### Integration Testing
+### Integration
 
 `tests/integration/app.test.js` (`transaction list rendering + actions`):
 HTML-escapes a malicious comment, removes a transaction from the table,
@@ -54,4 +61,4 @@ confirms before/after clearing all transactions.
 
 ## Status
 
-Implemented.
+Implemented

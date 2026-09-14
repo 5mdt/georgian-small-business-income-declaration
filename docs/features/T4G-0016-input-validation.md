@@ -2,7 +2,12 @@
 
 **Tags:** #validation
 
-## Description
+## User Story
+
+As a small business owner, I want malformed dates, amounts, or records rejected
+before they're saved, so that my transaction data stays trustworthy.
+
+## Behavior
 
 Rejects malformed dates, amounts, currency codes, users, and transactions
 before they're stored or used in a calculation.
@@ -11,7 +16,8 @@ before they're stored or used in a calculation.
 
 `src/utils.js`:
 - `validateDateString(dateString)` — strict `YYYY-MM-DD`, year `MIN_YEAR`
-  (2000) to 2100, never a rolled-over calendar date (see [[T4G-0003]]).
+  (2000) to 2100, never a rolled-over calendar date (see
+  [T4G-0003](T4G-0003-historical-rate-by-date.md)).
 - `validateAmount(amount)` — finite number, `0 < amount <= MAX_AMOUNT`
   (1,000,000,000).
 - `validateCurrencyCode(code)` — exactly 3 uppercase letters.
@@ -21,17 +27,18 @@ before they're stored or used in a calculation.
 
 These gate every write path: `loadTransactions`/`addTransactionToStorage`
 (`src/transactions.js`), `loadUsers`/`updateUserInStorage` (`src/users.js`),
-and CSV row import (`validateCSVRow`, [[T4G-0020]]) all reject invalid data
-rather than persisting it.
+and CSV row import (`validateCSVRow`,
+[T4G-0020](T4G-0020-backup-and-restore.md)) all reject invalid data rather
+than persisting it.
 
 ## Testing
 
-### Human Testing
+### Human
 
 - Attempt to convert with no amount or a negative amount — a validation
   error is shown instead of a result.
 
-### Unit Testing
+### Unit
 
 `tests/unit/validation.test.js`: date (format/range/boundaries/rollover/
 leap-year/type), amount (positive/zero/negative/non-numeric/over-cap/
@@ -41,4 +48,4 @@ sub-fields/non-object).
 
 ## Status
 
-Implemented.
+Implemented

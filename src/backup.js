@@ -34,6 +34,7 @@ const LEGACY_BACKUP_KEYS = ['users', 'transactions'];
  * @param {number} dataSchemaVersion
  * @returns {Array<string>} The subset of allKeys to include in the backup
  */
+// #T4G-0020
 export function selectBackupKeys(allKeys, dataSchemaVersion) {
     if (dataSchemaVersion === 1) {
         return allKeys.filter(key => LEGACY_BACKUP_KEYS.includes(key) || key.startsWith('t4g_'));
@@ -52,6 +53,7 @@ export function selectBackupKeys(allKeys, dataSchemaVersion) {
  * @param {string} [instanceUrl] - The app's own URL at export time, if known
  * @returns {string} Pretty-printed JSON backup envelope
  */
+// #T4G-0020
 export function buildBackupJSON(storageSnapshot, dataSchemaVersion, instanceUrl) {
     const envelope = {
         app: APP_NAME,
@@ -71,6 +73,7 @@ export function buildBackupJSON(storageSnapshot, dataSchemaVersion, instanceUrl)
  *   envelope field except data (app, dataSchemaVersion, exportedAt, instanceUrl?)
  * @throws {Error} If the JSON is malformed or isn't a backup envelope
  */
+// #T4G-0020
 export function parseBackupJSON(jsonString) {
     let parsed;
     try {
@@ -99,6 +102,7 @@ export function parseBackupJSON(jsonString) {
  *   so users/transactions are read from their canonical keys (src/keys.js)
  * @returns {{users: Array<Object>, transactions: Array<Object>}}
  */
+// #T4G-0020
 export function mergeBackupData(existingUsers, existingTransactions, backupData) {
     const users = [...existingUsers];
     const userIds = new Set(users.map(u => u.id));

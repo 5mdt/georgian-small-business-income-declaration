@@ -2,7 +2,13 @@
 
 **Tags:** #currency
 
-## Description
+## User Story
+
+As a small business owner, I want to select GEL itself as the source currency, so
+that I can log GEL income alongside foreign-currency income without a pointless
+rate lookup.
+
+## Behavior
 
 GEL is the target currency, so it needs no exchange rate lookup — it's
 handled as a synthetic 1:1 "currency" rather than an NBG API entry.
@@ -12,30 +18,31 @@ handled as a synthetic 1:1 "currency" rather than an NBG API entry.
 `src/currency.js` `createGELCurrencyObject()` returns
 `{ code: 'GEL', name: 'Georgian Lari', rate: 1, quantity: 1, rateFormated: '1.0000' }`.
 `findCurrencyInData()` returns this object immediately for `currencyCode === 'GEL'`,
-without inspecting the NBG response. `convertToGEL()` ([[T4G-0001]]) also
-special-cases `currency.code === 'GEL'` to return the amount unchanged.
-`script.js` always lists GEL first in the currency dropdown
-(`populateCurrencySelect`) and defaults to it on initial page load.
+without inspecting the NBG response. `convertToGEL()`
+([T4G-0001](T4G-0001-currency-conversion.md)) also special-cases
+`currency.code === 'GEL'` to return the amount unchanged. `script.js` always
+lists GEL first in the currency dropdown (`populateCurrencySelect`) and
+defaults to it on initial page load.
 
 ## Testing
 
-### Human Testing
+### Human
 
 - Select GEL as the currency and convert — the result shows the amount
   unchanged, with no exchange rate or quantity factor displayed.
 
-### Unit Testing
+### Unit
 
 `tests/unit/currency.test.js` (`createGELCurrencyObject`,
 `findCurrencyInData`): synthetic object shape; GEL returned without
 inspecting the response.
 `tests/unit/calculations.test.js`: GEL passthrough in `convertToGEL`.
 
-### Integration Testing
+### Integration
 
 `tests/integration/app.test.js` (`currency conversion`): GEL treated as 1:1
 passthrough with no exchange rate details shown.
 
 ## Status
 
-Implemented.
+Implemented

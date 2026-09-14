@@ -6,6 +6,7 @@
 // site with no build step, so it can't be read from package.json at
 // runtime - bump this by hand alongside docs/CHANGELOG.md entries.
 
+// #T4G-0018
 export const APP_VERSION = '1.8.0';
 
 // ===========================
@@ -19,4 +20,5 @@ export const APP_VERSION = '1.8.0';
 // conventional DB-migration numbering (Rails/Django style) instead. Bump
 // by hand whenever a stored data shape actually changes.
 
+// #T4G-0019, #T4G-0021
 export const DATA_SCHEMA_VERSION = 2;

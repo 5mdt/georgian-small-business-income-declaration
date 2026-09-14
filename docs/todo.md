@@ -3,7 +3,6 @@
 - Total income should be separated by user; supertotal income is useful too.
 - Tint rows with user's color in table.
 - Add yearly total separator in table.
-- Local storage key prefix for data.
 - Add pop-up hints on buttons.
 - Hide/grey out "Load Demo Data" button when transactions exist.
 - Move user management block to sidebar.

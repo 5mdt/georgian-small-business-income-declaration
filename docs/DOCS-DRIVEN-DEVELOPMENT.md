@@ -1,6 +1,6 @@
 # Docs-Driven Development Approach
 
-**Version:** 1.4 · **Last updated:** 2026-09-11
+**Version:** 1.5 · **Last updated:** 2026-09-14
 
 <!-- Bump both whenever this document's rules or templates change. -->
 
@@ -18,8 +18,8 @@
 - Keep docs short: describe behavior and implementation, omit design rationale.
 - Edit only what changed; omit unused sections.
 - Changed behavior edits the existing document. New behavior gets a new ID.
-- Log any quirk, bug, or open question the moment you notice it — as a `TODO.md`
-  or `BUGS.md` line — regardless of what you're currently working on. Don't defer
+- Log any quirk, bug, or open question the moment you notice it — as a `todo.md`
+  or `bugs.md` line — regardless of what you're currently working on. Don't defer
   it until the current task is done.
 - Reference an ID as `#<PREFIX>-NNNN` in commit messages, code comments, and
   prose mentions that aren't linking to the doc itself (e.g. `paging #MDV-0018`).
@@ -35,8 +35,8 @@
 ```text
 docs/
   FRD.md
-  TODO.md
-  BUGS.md
+  todo.md
+  bugs.md
   CHANGELOG.md
   features/
     TEMPLATE.md
@@ -56,8 +56,8 @@ docs/
 5. Update status.
 6. If implemented or deprecated, add a changelog entry.
 
-Steps 1–6 are for a specific feature. Logging a quirk or bug to `BUGS.md` (or an idea
-to `TODO.md`) happens continuously alongside this workflow, whenever one turns up —
+Steps 1–6 are for a specific feature. Logging a quirk or bug to `bugs.md` (or an idea
+to `todo.md`) happens continuously alongside this workflow, whenever one turns up —
 see Rules above.
 
 ## FRD.md template
@@ -165,7 +165,7 @@ The existing instance exits on `SIGTERM`.
 Implemented
 ```
 
-## TODO.md template
+## todo.md template
 
 ```markdown
 # Features to add
@@ -175,7 +175,7 @@ Implemented
 
 Remove the line once promoted to a feature doc.
 
-## BUGS.md template
+## bugs.md template
 
 ```markdown
 # Bugs & debt
@@ -201,7 +201,7 @@ Difficulty: D1 = trivial  D2 = small    D3 = medium   D4 = large
 ```
 
 Defects, quirks, tech debt, and chores on already-shipped behavior go here, not in
-`TODO.md` (new behavior only). Every entry gets a stable `#BUG-NNNN` ID from the same
+`todo.md` (new behavior only). Every entry gets a stable `#BUG-NNNN` ID from the same
 sequence regardless of which section it lands in — IDs are never reused or renumbered,
 so deleting a fixed entry leaves a gap. Every entry ends with a `[P#/D#]` marker (see
 above) so entries can be triaged and sorted by priority/difficulty at a glance. Group
@@ -232,7 +232,7 @@ Rules:
 
 ## Adopting this approach
 
-1. Create the directory structure above, with empty `FRD.md`, `TODO.md`, and
+1. Create the directory structure above, with empty `FRD.md`, `todo.md`, and
    `CHANGELOG.md`, and `TEMPLATE.md`/`EXAMPLE.md` copied into `features/`.
 2. Add the Rules section to your project's `CLAUDE.md` or `AGENTS.md`.
 3. Choose a project prefix and start numbering at `0001`.
