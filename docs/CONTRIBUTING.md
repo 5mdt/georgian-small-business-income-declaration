@@ -51,6 +51,8 @@ commit.
 - This project follows [Docs-Driven Development](DOCS-DRIVEN-DEVELOPMENT.md). New or changed
   behavior needs a `docs/features/T4G-NNNN-*.md` entry before/alongside the
   code.
+- **`CHANGELOG.md` entries are one line per feature** — the feature document
+  has the details, don't duplicate them in the changelog.
 
 ## Deployment
 

@@ -2,7 +2,13 @@
 
 **Tags:** #storage #offline
 
-## Description
+## User Story
+
+As a small business owner, I want my data to persist in my own browser without a
+backend, so that the app keeps working offline and without sending my income data
+anywhere.
+
+## Behavior
 
 Persists all app data in the browser (`localStorage`, with a
 `sessionStorage` fallback) so the app works offline after initial load and
@@ -26,33 +32,37 @@ without a backend.
 - `getAllStorageKeys(storageBackend)` — enumerates every key via the
   standard `Storage.length`/`Storage.key(i)` interface (not `Object.keys`,
   which doesn't reflect a `Storage` object's actual entries). Used by the
-  full JSON backup ([[T4G-0020]]) to snapshot and, on a wholesale restore,
-  wipe every key the app has written.
+  full JSON backup ([T4G-0020](T4G-0020-backup-and-restore.md)) to snapshot
+  and, on a wholesale restore, wipe every key the app has written.
 
-Keys in use (`src/keys.js`, since [[T4G-0021]]'s schema `1` → `2`
+Keys in use (`src/keys.js`, since
+[T4G-0021](T4G-0021-schema-migration-key-namespacing.md)'s schema `1` → `2`
 namespacing migration): `t4g_data_users`, `t4g_data_transactions`,
-`t4g_cache_currencyRates_${date}` per date ([[T4G-0002]]),
-`t4g_config_themePreference` ([[T4G-0015]]), `t4g_config_addTransaction`
-(checkbox state) — plus the pre-existing `t4g_appVersion` ([[T4G-0018]]) and
-`t4g_dataSchemaVersion` ([[T4G-0019]]), which predate the category
-convention and aren't renamed. `sessionStorage` additionally holds
-`t4g_config_collapsible_<sectionId>` state (`COLLAPSIBLE_KEY_PREFIX`,
-`src/keys.js`; not persisted across browser sessions by design, and not
-part of the schema migration since there's nothing to migrate there). The
-full JSON backup ([[T4G-0020]]) does **not** snapshot every key
+`t4g_cache_currencyRates_${date}` per date
+([T4G-0002](T4G-0002-nbg-rate-fetch-cache.md)), `t4g_config_themePreference`
+([T4G-0015](T4G-0015-theme-switcher.md)), `t4g_config_addTransaction`
+(checkbox state) — plus the pre-existing `t4g_appVersion`
+([T4G-0018](T4G-0018-update-notification.md)) and
+`t4g_dataSchemaVersion` ([T4G-0019](T4G-0019-data-schema-version.md)), which
+predate the category convention and aren't renamed. `sessionStorage`
+additionally holds `t4g_config_collapsible_<sectionId>` state
+(`COLLAPSIBLE_KEY_PREFIX`, `src/keys.js`; not persisted across browser
+sessions by design, and not part of the schema migration since there's
+nothing to migrate there). The full JSON backup
+([T4G-0020](T4G-0020-backup-and-restore.md)) does **not** snapshot every key
 unconditionally — its scope depends on the stored data schema version
 (legacy `users`/`transactions`/`t4g_*` at schema `1`; every `t4g_*` key,
 which now includes the data/config/cache keys above, at schema `2`+).
 
 ## Testing
 
-### Human Testing
+### Human
 
 - Add data, reload the page — users and transactions persist.
 - Go offline (after initial load) — the app still functions against
   cached data; only fetching new NBG rates requires connectivity.
 
-### Unit Testing
+### Unit
 
 `tests/unit/storage.test.js`: localStorage-writable vs. sessionStorage-
 fallback, read (existing/missing/corrupted JSON/explicit backend), save
@@ -61,4 +71,4 @@ backend).
 
 ## Status
 
-Implemented.
+Implemented

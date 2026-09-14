@@ -13,6 +13,7 @@ import { CURRENCY_RATE_KEY_PREFIX } from './keys.js';
  * Builds the synthetic GEL "currency" (rate 1, no API lookup needed).
  * @returns {Object}
  */
+// #T4G-0004
 export function createGELCurrencyObject() {
     return {
         code: 'GEL',
@@ -28,6 +29,7 @@ export function createGELCurrencyObject() {
  * @param {*} data
  * @throws {Error}
  */
+// #T4G-0002
 export function validateCurrencyResponse(data) {
     if (!Array.isArray(data) || data.length === 0 || !data[0].currencies) {
         throw new Error(ERROR_MESSAGES.NO_CURRENCY_DATA);
@@ -41,6 +43,7 @@ export function validateCurrencyResponse(data) {
  * @returns {Object} Currency object
  * @throws {Error} If the response is malformed or the currency isn't found
  */
+// #T4G-0002, #T4G-0004
 export function findCurrencyInData(data, currencyCode) {
     if (currencyCode === 'GEL') {
         return createGELCurrencyObject();
@@ -62,6 +65,7 @@ export function findCurrencyInData(data, currencyCode) {
  * @param {string} date - YYYY-MM-DD
  * @returns {*} Cached response, or null
  */
+// #T4G-0002
 export function getCurrencyRatesFromCache(date) {
     return getFromStorage(`${CURRENCY_RATE_KEY_PREFIX}${date}`);
 }
@@ -71,6 +75,7 @@ export function getCurrencyRatesFromCache(date) {
  * @param {string} date - YYYY-MM-DD
  * @param {*} data - NBG API response to cache
  */
+// #T4G-0002
 export function saveCurrencyRatesToCache(date, data) {
     saveToStorage(`${CURRENCY_RATE_KEY_PREFIX}${date}`, data);
 }
@@ -81,6 +86,7 @@ export function saveCurrencyRatesToCache(date, data) {
  * @param {Function} [fetchImpl] - fetch implementation (defaults to global fetch; injectable for tests)
  * @returns {Promise<*>} The NBG API response
  */
+// #T4G-0002
 export function fetchCurrencyRates(date, fetchImpl = fetch) {
     const apiUrl = `https://nbg.gov.ge/gw/api/ct/monetarypolicy/currencies/en/json/?date=${date}`;
 

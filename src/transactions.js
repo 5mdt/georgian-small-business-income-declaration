@@ -16,6 +16,7 @@ import { STORAGE_KEYS } from './keys.js';
  * Loads valid transactions from storage.
  * @returns {Array<Object>}
  */
+// #T4G-0007
 export function loadTransactions() {
     const transactions = getFromStorage(STORAGE_KEYS.transactions, []);
     if (!Array.isArray(transactions)) return [];
@@ -27,6 +28,7 @@ export function loadTransactions() {
  * @param {Object} transactionData
  * @returns {boolean} True on success
  */
+// #T4G-0007
 export function addTransactionToStorage(transactionData) {
     if (!validateTransaction(transactionData)) {
         console.error('Invalid transaction data', transactionData);
@@ -43,6 +45,7 @@ export function addTransactionToStorage(transactionData) {
  * @param {string} id
  * @returns {boolean} True on success
  */
+// #T4G-0007
 export function removeTransactionFromStorage(id) {
     const transactions = loadTransactions();
     const filtered = transactions.filter(t => t.id !== id);
@@ -55,6 +58,7 @@ export function removeTransactionFromStorage(id) {
  * @param {string} newComment
  * @returns {boolean} True on success, false if the transaction wasn't found
  */
+// #T4G-0007
 export function updateTransactionCommentInStorage(id, newComment) {
     const transactions = loadTransactions();
     const transaction = transactions.find(t => t.id === id);
@@ -71,6 +75,7 @@ export function updateTransactionCommentInStorage(id, newComment) {
  * @param {string} userId
  * @returns {boolean} True on success
  */
+// #T4G-0006
 export function removeUserTransactions(userId) {
     const transactions = loadTransactions();
     const filteredTransactions = transactions.filter(t => t.userId !== userId);

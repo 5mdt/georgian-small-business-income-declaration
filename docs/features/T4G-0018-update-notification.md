@@ -2,7 +2,13 @@
 
 **Tags:** #updates #ui #storage
 
-## Description
+## User Story
+
+As a returning user, I want to be told when my browser has an older cached
+version than what just loaded, so that I know the app updated and can see what
+changed.
+
+## Behavior
 
 Tells a returning user their browser has an older version of the app cached
 than what just loaded, with a link to the changelog. First-ever visit does
@@ -20,8 +26,9 @@ comparison (`'1.2.0'` vs `'1.10.0'`), returns negative/zero/positive.
 Missing segments are treated as `0`.
 
 `script.js` (Update Notification section):
-- `VERSION_STORAGE_KEY = 't4g_appVersion'` — first prefixed storage key in
-  the app ([[T4G-0013]] lists the rest, unprefixed).
+- `VERSION_STORAGE_KEY = 't4g_appVersion'` (`src/keys.js`; predates the
+  `t4g_<category>_` namespacing convention documented in
+  [T4G-0013](T4G-0013-local-storage-persistence.md)).
 - `checkForAppUpdate()`, called from `window.onload`:
   - No stored version (first-ever visit) → silently `saveToStorage`s
     `APP_VERSION`, no popup.
@@ -36,14 +43,16 @@ Missing segments are treated as `0`.
   acknowledged keeps reappearing on reload. A separate "View changelog"
   link opens `docs/CHANGELOG.md` in a new tab and does not close the modal.
 
-## Configuration
+## Quirks & Decisions
 
-`APP_VERSION` in `src/version.js` must be bumped by hand whenever a
-`docs/CHANGELOG.md` entry is added — nothing enforces they stay in sync.
+- Quirk: `APP_VERSION` in `src/version.js` must be bumped by hand whenever a
+  `docs/CHANGELOG.md` entry is added — nothing enforces they stay in sync.
+  Open: add a CI check that a changelog entry and a version bump land
+  together?
 
 ## Testing
 
-### Human Testing
+### Human
 
 - Clear site data, load the app — no popup; `localStorage['t4g_appVersion']`
   is set to the current version.
@@ -53,13 +62,13 @@ Missing segments are treated as `0`.
 - Set the stored version below current, reload, but close the tab without
   clicking "Got it" — reload again — popup still appears.
 
-### Unit Testing
+### Unit
 
 `tests/unit/utils.test.js` (`compareVersions`): equal versions, older,
 newer, differing segment counts (`'1.2'` vs `'1.2.0'`), multi-digit
 segments (`'1.10.0'` > `'1.2.0'`).
 
-### Integration Testing
+### Integration
 
 `tests/integration/app.test.js` (`update notification`): first visit
 stores the version without showing the modal; an older stored version
@@ -68,4 +77,4 @@ version; a newer-or-equal stored version shows nothing.
 
 ## Status
 
-Implemented.
+Implemented

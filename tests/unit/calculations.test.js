@@ -4,6 +4,7 @@ import {
     calculateYTDForTransaction,
     precalculateAllYTD,
     calculateMonthlyYTDByUser,
+    calculateMonthlyIncomeByUser,
     groupTransactionsByMonthAndUser
 } from '../../src/utils.js';
 
@@ -460,6 +461,91 @@ describe('Monthly YTD by user - calculateMonthlyYTDByUser', () => {
         const monthlyYTD = calculateMonthlyYTDByUser([]);
         expect(monthlyYTD).toBeInstanceOf(Map);
         expect(monthlyYTD.size).toBe(0);
+    });
+});
+
+describe('Monthly income by user - calculateMonthlyIncomeByUser', () => {
+    it('reports the total for the only transaction in a month', () => {
+        const transactions = [
+            { id: 'tx1', userId: 'user1', date: '2025-01-15', currencyCode: 'USD', amount: 100, convertedGEL: 287.5, timestamp: '1000' }
+        ];
+
+        const monthlyIncome = calculateMonthlyIncomeByUser(transactions);
+
+        expect(monthlyIncome).toBeInstanceOf(Map);
+        expect(monthlyIncome.get('user1_2025-01')).toBe(287.5);
+        expect(monthlyIncome.size).toBe(1);
+    });
+
+    it('sums every transaction dated within the month only, not a running year total', () => {
+        const transactions = [
+            { id: 'tx1', userId: 'user1', date: '2025-01-05', currencyCode: 'USD', amount: 100, convertedGEL: 100, timestamp: '1000' },
+            { id: 'tx2', userId: 'user1', date: '2025-01-15', currencyCode: 'USD', amount: 100, convertedGEL: 100, timestamp: '2000' },
+            { id: 'tx3', userId: 'user1', date: '2025-02-05', currencyCode: 'USD', amount: 100, convertedGEL: 50, timestamp: '3000' }
+        ];
+
+        const monthlyIncome = calculateMonthlyIncomeByUser(transactions);
+
+        // January sums its own two transactions; February is not cumulative
+        // with January, unlike calculateMonthlyYTDByUser.
+        expect(monthlyIncome.get('user1_2025-01')).toBe(200);
+        expect(monthlyIncome.get('user1_2025-02')).toBe(50);
+    });
+
+    it('sums transactions regardless of order', () => {
+        const transactions = [
+            { id: 'tx2', userId: 'user1', date: '2025-01-15', currencyCode: 'EUR', amount: 50, convertedGEL: 155, timestamp: '2000' },
+            { id: 'tx1', userId: 'user1', date: '2025-01-05', currencyCode: 'USD', amount: 100, convertedGEL: 100, timestamp: '1000' }
+        ];
+
+        const monthlyIncome = calculateMonthlyIncomeByUser(transactions);
+
+        expect(monthlyIncome.get('user1_2025-01')).toBe(255);
+    });
+
+    it('keeps totals independent per user within the same month', () => {
+        const transactions = [
+            { id: 'tx1', userId: 'user1', date: '2025-01-15', currencyCode: 'USD', amount: 100, convertedGEL: 100, timestamp: '1000' },
+            { id: 'tx2', userId: 'user2', date: '2025-01-20', currencyCode: 'USD', amount: 100, convertedGEL: 500, timestamp: '2000' }
+        ];
+
+        const monthlyIncome = calculateMonthlyIncomeByUser(transactions);
+
+        expect(monthlyIncome.get('user1_2025-01')).toBe(100);
+        expect(monthlyIncome.get('user2_2025-01')).toBe(500);
+    });
+
+    it('keeps totals independent per month, including across years', () => {
+        const transactions = [
+            { id: 'tx1', userId: 'user1', date: '2024-01-15', currencyCode: 'USD', amount: 100, convertedGEL: 100, timestamp: '1000' },
+            { id: 'tx2', userId: 'user1', date: '2025-01-15', currencyCode: 'USD', amount: 100, convertedGEL: 100, timestamp: '2000' },
+            { id: 'tx3', userId: 'user1', date: '2025-02-15', currencyCode: 'USD', amount: 100, convertedGEL: 100, timestamp: '3000' }
+        ];
+
+        const monthlyIncome = calculateMonthlyIncomeByUser(transactions);
+
+        expect(monthlyIncome.get('user1_2024-01')).toBe(100);
+        expect(monthlyIncome.get('user1_2025-01')).toBe(100);
+        expect(monthlyIncome.get('user1_2025-02')).toBe(100);
+        expect(monthlyIncome.size).toBe(3);
+    });
+
+    it('skips invalid transactions', () => {
+        const transactions = [
+            { id: 'tx1', userId: 'user1', date: '2025-01-15', currencyCode: 'USD', amount: 100, convertedGEL: 100, timestamp: '1000' },
+            { id: 'invalid', userId: 'user1' }
+        ];
+
+        const monthlyIncome = calculateMonthlyIncomeByUser(transactions);
+
+        expect(monthlyIncome.get('user1_2025-01')).toBe(100);
+        expect(monthlyIncome.size).toBe(1);
+    });
+
+    it('returns an empty map for an empty transaction list', () => {
+        const monthlyIncome = calculateMonthlyIncomeByUser([]);
+        expect(monthlyIncome).toBeInstanceOf(Map);
+        expect(monthlyIncome.size).toBe(0);
     });
 });
 

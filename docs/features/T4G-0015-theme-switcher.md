@@ -2,7 +2,12 @@
 
 **Tags:** #theme #ui
 
-## Description
+## User Story
+
+As a small business owner, I want to choose Light, Dark, or System appearance, so
+that the app matches my preference or my OS setting.
+
+## Behavior
 
 Lets a user cycle between System, Light, and Dark appearance, in addition
 to the automatic `prefers-color-scheme` dark mode.
@@ -11,8 +16,10 @@ to the automatic `prefers-color-scheme` dark mode.
 
 `script.js` (Theme Management section):
 - `THEME_OPTIONS = ['system', 'light', 'dark']`, cycled by `toggleTheme()`.
-- `getThemePreference()` reads `themePreference` from storage
-  ([[T4G-0013]]), defaulting to `'system'`.
+- `getThemePreference()` reads `t4g_config_themePreference`
+  (`STORAGE_KEYS.themePreference`, `src/keys.js`;
+  [T4G-0013](T4G-0013-local-storage-persistence.md)), defaulting to
+  `'system'`.
 - `getCurrentEffectiveTheme()` resolves `'system'` to `'dark'`/`'light'` via
   `window.matchMedia('(prefers-color-scheme: dark)')`.
 - `applyTheme(theme)` sets/removes `data-theme` on `<html>`, updates the
@@ -29,18 +36,18 @@ keep using `var(--bg-card)` for dark mode to render correctly.
 
 ## Testing
 
-### Human Testing
+### Human
 
 - Click the theme toggle button — cycles System → Light → Dark → System,
   updating the icon, label, and page appearance each time.
 - With preference set to System, change the OS theme — the app follows it
   and the button's aria-label updates.
 
-### Integration Testing
+### Integration
 
 `tests/integration/app.test.js` (`theme toggle`): cycles
 system → light → dark → system and updates the DOM.
 
 ## Status
 
-Implemented.
+Implemented

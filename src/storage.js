@@ -16,6 +16,7 @@ import { ERROR_MESSAGES } from './utils.js';
  * global.localStorage - is picked up on the next call.
  * @returns {Storage} localStorage or sessionStorage
  */
+// #T4G-0013
 export function getStorage() {
     try {
         localStorage.setItem('__test__', '1');
@@ -34,6 +35,7 @@ export function getStorage() {
  * @param {Storage} [storageBackend] - Storage backend to use (defaults to getStorage())
  * @returns {*} Parsed value, or defaultValue
  */
+// #T4G-0013
 export function getFromStorage(key, defaultValue = null, storageBackend = getStorage()) {
     try {
         const item = storageBackend.getItem(key);
@@ -52,6 +54,7 @@ export function getFromStorage(key, defaultValue = null, storageBackend = getSto
  * @param {Storage} [storageBackend] - Storage backend to use (defaults to getStorage())
  * @returns {boolean} True on success
  */
+// #T4G-0013
 export function saveToStorage(key, value, storageBackend = getStorage()) {
     try {
         const serialized = JSON.stringify(value);
@@ -73,6 +76,7 @@ export function saveToStorage(key, value, storageBackend = getStorage()) {
  * @param {Storage} [storageBackend] - Storage backend to use (defaults to getStorage())
  * @returns {boolean} True on success
  */
+// #T4G-0013
 export function removeFromStorage(key, storageBackend = getStorage()) {
     try {
         storageBackend.removeItem(key);
@@ -90,6 +94,7 @@ export function removeFromStorage(key, storageBackend = getStorage()) {
  * @param {Storage} [storageBackend] - Storage backend to use (defaults to getStorage())
  * @returns {Array<string>} All keys currently stored
  */
+// #T4G-0013, #T4G-0020
 export function getAllStorageKeys(storageBackend = getStorage()) {
     const keys = [];
     for (let i = 0; i < storageBackend.length; i++) {

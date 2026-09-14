@@ -2,7 +2,13 @@
 
 **Tags:** #users
 
-## Description
+## User Story
+
+As a small business owner tracking income for more than one person or entity, I
+want to manage a list of named accounts, so that transactions can be attributed
+per user.
+
+## Behavior
 
 Tracks multiple individuals or business entities, each with a name and
 taxpayer ID, so transactions can be attributed per user.
@@ -10,9 +16,11 @@ taxpayer ID, so transactions can be attributed per user.
 ## Implementation
 
 `src/users.js`:
-- `loadUsers()` reads `localStorage` key `users` ([[T4G-0013]]), seeding a
-  single default user (`createDefaultUser()`, `id: 'user'`) if none exist or
-  none pass `validateUser`.
+- `loadUsers()` reads `localStorage` key `t4g_data_users`
+  (`STORAGE_KEYS.users`, `src/keys.js`;
+  [T4G-0013](T4G-0013-local-storage-persistence.md)), seeding a single
+  default user (`createDefaultUser()`, `id: 'user'`) if none exist or none
+  pass `validateUser`.
 - `updateUserInStorage(userData)` validates then upserts by `id`.
 - `getUserById(userId)` looks up a user.
 
@@ -28,23 +36,23 @@ taxpayer ID, so transactions can be attributed per user.
 
 ## Testing
 
-### Human Testing
+### Human
 
 - Click "User Management" → "Toggle User List" — the user table appears.
 - "+ Add User" — prompts for name and taxpayer ID, adds a row.
 - Edit a name/taxpayer ID inline, click "💾 Save" — the change persists and
   the user selectors update.
 
-### Unit Testing
+### Unit
 
 `tests/unit/users.test.js` (`loadUsers`, `updateUserInStorage`,
 `getUserById`): default-user seeding, stored/invalid users, add vs. update.
 
-### Integration Testing
+### Integration
 
 `tests/integration/app.test.js` (`bootstrap`, `user management`): seeds and
 renders the default user; creates a new user via `addNewUser` and lists it.
 
 ## Status
 
-Implemented.
+Implemented

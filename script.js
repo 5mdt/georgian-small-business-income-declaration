@@ -9,6 +9,7 @@ import {
     convertToGEL,
     calculateYTDForTransaction,
     calculateMonthlyYTDByUser,
+    calculateMonthlyIncomeByUser,
     groupTransactionsByMonthAndUser,
     buildUserLookupMap,
     createDefaultUser,
@@ -79,10 +80,12 @@ const THEME_LABELS = {
     dark: 'Dark'
 };
 
+// #T4G-0015
 function getThemePreference() {
     return getFromStorage(THEME_STORAGE_KEY, 'system');
 }
 
+// #T4G-0015
 function getCurrentEffectiveTheme() {
     const preference = getThemePreference();
     if (preference !== 'system') {
@@ -95,6 +98,7 @@ function getCurrentEffectiveTheme() {
     return 'light';
 }
 
+// #T4G-0015
 function updateAriaLabel(theme) {
     const button = document.getElementById('themeToggle');
     if (!button) return;
@@ -108,6 +112,7 @@ function updateAriaLabel(theme) {
     );
 }
 
+// #T4G-0015
 function applyTheme(theme) {
     const htmlElement = document.documentElement;
     const themeIcon = document.getElementById('themeIcon');
@@ -135,6 +140,7 @@ function applyTheme(theme) {
     saveToStorage(THEME_STORAGE_KEY, theme);
 }
 
+// #T4G-0015
 function toggleTheme() {
     const currentTheme = getThemePreference();
     const currentIndex = THEME_OPTIONS.indexOf(currentTheme);
@@ -144,6 +150,7 @@ function toggleTheme() {
     applyTheme(nextTheme);
 }
 
+// #T4G-0015
 function setupSystemThemeListener() {
     if (!window.matchMedia) return;
 
@@ -168,6 +175,7 @@ function setupSystemThemeListener() {
     }
 }
 
+// #T4G-0015
 function initTheme() {
     const savedTheme = getThemePreference();
     applyTheme(savedTheme);
@@ -183,6 +191,7 @@ initTheme();
 
 const VERSION_STORAGE_KEY = 't4g_appVersion';
 
+// #T4G-0018
 function dismissUpdateModal() {
     hideElement(document.getElementById('updateModal'));
     saveToStorage(VERSION_STORAGE_KEY, APP_VERSION);
@@ -191,6 +200,7 @@ function dismissUpdateModal() {
     checkForSchemaMigration();
 }
 
+// #T4G-0018
 function checkForAppUpdate() {
     const storedVersion = getFromStorage(VERSION_STORAGE_KEY, null);
 
@@ -242,6 +252,7 @@ let migrationBackupDownloaded = false;
 // schema-1) key directly, rather than loadTransactions().length, since
 // loadTransactions() reads from the schema-2 t4g_data_transactions key and
 // can no longer see schema-1 data once that key exists.
+// #T4G-0021
 function detectBaselineSchemaVersion() {
     const allKeys = getAllStorageKeys();
     const hasLegacyData = allKeys.some(key =>
@@ -255,6 +266,7 @@ function detectBaselineSchemaVersion() {
 // itself with this, so a backup taken before a pending migration is
 // labeled with the shape it actually has, not the shape the code would
 // produce after migrating. Same baseline as checkForSchemaMigration below.
+// #T4G-0019, #T4G-0020
 function currentDataSchemaVersion() {
     const storedVersion = getFromStorage(DATA_SCHEMA_STORAGE_KEY, null);
     if (storedVersion !== null) return Number(storedVersion);
@@ -266,6 +278,7 @@ function currentDataSchemaVersion() {
 // stamps the new version. Reads the whole storage into a plain snapshot,
 // transforms it, then reconciles: keys the migration dropped (renamed away
 // from) are removed, keys present in the result are (re)written.
+// #T4G-0021
 function runSchemaMigration() {
     const storedVersion = getFromStorage(DATA_SCHEMA_STORAGE_KEY, null);
     const fromVersion = storedVersion !== null ? Number(storedVersion) : detectBaselineSchemaVersion();
@@ -286,6 +299,7 @@ function runSchemaMigration() {
     saveToStorage(DATA_SCHEMA_STORAGE_KEY, DATA_SCHEMA_VERSION);
 }
 
+// #T4G-0019, #T4G-0021
 function dismissMigrationModal() {
     if (!migrationBackupDownloaded) {
         const proceed = confirm(
@@ -305,6 +319,7 @@ function dismissMigrationModal() {
     hideElement(document.getElementById('migrationModal'));
 }
 
+// #T4G-0019
 function checkForSchemaMigration() {
     const storedVersion = getFromStorage(DATA_SCHEMA_STORAGE_KEY, null);
 
@@ -333,11 +348,13 @@ function checkForSchemaMigration() {
 // loadUsers, canDeleteUser, removeUserFromStorage, getUserById, updateUserInStorage
 // are imported from src/users.js
 
+// #T4G-0005
 function triggerUserUIRefresh() {
     renderUserList();
     populateUserSelectors();
 }
 
+// #T4G-0005
 function saveUser(userData) {
     const success = updateUserInStorage(userData);
     if (success) {
@@ -346,12 +363,14 @@ function saveUser(userData) {
     return success;
 }
 
+// #T4G-0020, #T4G-0021
 function triggerDataRefresh() {
     renderUserList();
     populateUserSelectors();
     renderTransactionList();
 }
 
+// #T4G-0006
 function deleteUser(userId) {
     const users = loadUsers();
     const transactions = loadTransactions();
@@ -382,6 +401,7 @@ function deleteUser(userId) {
 // updateTransactionCommentInStorage, removeUserTransactions are imported
 // from src/transactions.js
 
+// #T4G-0007
 function saveTransaction(transactionData) {
     const success = addTransactionToStorage(transactionData);
     if (success) {
@@ -394,6 +414,7 @@ function saveTransaction(transactionData) {
     return success;
 }
 
+// #T4G-0007
 function deleteTransaction(id) {
     const success = removeTransactionFromStorage(id);
     if (success) {
@@ -402,6 +423,7 @@ function deleteTransaction(id) {
     return success;
 }
 
+// #T4G-0007
 function updateTransactionComment(id, newComment) {
     const success = updateTransactionCommentInStorage(id, newComment);
     if (success) {
@@ -410,12 +432,14 @@ function updateTransactionComment(id, newComment) {
     return success;
 }
 
+// #T4G-0013
 function saveCheckboxState() {
     const checkbox = document.getElementById('addTransactionCheckbox');
     if (!checkbox) return;
     saveToStorage(STORAGE_KEYS.addTransaction, checkbox.checked);
 }
 
+// #T4G-0013
 function loadCheckboxState() {
     const checkbox = document.getElementById('addTransactionCheckbox');
     if (!checkbox) return;
@@ -429,6 +453,7 @@ function loadCheckboxState() {
 // ===========================
 
 // Function to toggle collapsible sections
+// #T4G-0013
 function toggleCollapsible(sectionId) {
     const content = document.getElementById(`${sectionId}-content`);
     const icon = document.getElementById(`${sectionId}-icon`);
@@ -451,6 +476,7 @@ function toggleCollapsible(sectionId) {
 }
 
 // Function to restore collapsible states from sessionStorage
+// #T4G-0013
 function restoreCollapsibleStates() {
     const sections = ['disclaimer', 'howItWorks'];
 
@@ -466,6 +492,7 @@ function restoreCollapsibleStates() {
     });
 }
 
+// #T4G-0001
 function clearConversionUI() {
     const resultDiv = document.getElementById('result');
     const loadingMessage = document.getElementById('loadingMessage');
@@ -478,6 +505,7 @@ function clearConversionUI() {
     hideElement(loadingMessage);
 }
 
+// #T4G-0001, #T4G-0016
 function validateConversionInputs(date, currencyCode, amount) {
     if (!date) {
         showError('errorMessage', ERROR_MESSAGES.NO_DATE);
@@ -496,6 +524,7 @@ function validateConversionInputs(date, currencyCode, amount) {
 
 // getCurrencyRatesFromCache and fetchCurrencyRates are imported from src/currency.js
 
+// #T4G-0001
 function handleConversionError(error) {
     const loadingMessage = document.getElementById('loadingMessage');
     hideElement(loadingMessage);
@@ -535,6 +564,7 @@ document.getElementById('fetchButton').addEventListener('click', function () {
 // createGELCurrencyObject, validateCurrencyResponse, findCurrencyInData,
 // convertToGEL are imported from src/currency.js / src/utils.js
 
+// #T4G-0001
 function createTransactionFromConversion(currency, amount, convertedGEL, date, userId) {
     return {
         id: generateTransactionId(),
@@ -551,6 +581,7 @@ function createTransactionFromConversion(currency, amount, convertedGEL, date, u
     };
 }
 
+// #T4G-0001
 function displayConversionResult(resultDiv, amount, currencyCode, convertedGEL, currency, isTransaction) {
     if (isTransaction) {
         resultDiv.innerHTML = `
@@ -570,6 +601,7 @@ function displayConversionResult(resultDiv, amount, currencyCode, convertedGEL, 
     showElement(resultDiv);
 }
 
+// #T4G-0001
 function handleCurrencyData(data, amount, currencyCode, resultDiv, loadingMessage, errorMessage, addAsTransaction) {
     hideElement(loadingMessage);
 
@@ -600,6 +632,7 @@ document.getElementById('datePicker').addEventListener('change', function () {
     loadCurrencies();
 });
 
+// #T4G-0002, #T4G-0003
 function loadCurrencies(isInitialLoad = false) {
     const date = document.getElementById('datePicker').value;
     const currencySelect = document.getElementById('currencySelect');
@@ -644,6 +677,7 @@ function loadCurrencies(isInitialLoad = false) {
 }
 
 // Function to populate currency select
+// #T4G-0002, #T4G-0004
 function populateCurrencySelect(data, currencySelect, isInitialLoad = false, savedCurrency = null) {
     if (!Array.isArray(data) || data.length === 0 || !data[0].currencies) {
         throw new Error('No valid currency data available.');
@@ -690,6 +724,7 @@ let filterState = createDefaultFilterState();
 // applyFilters, SORT_STRATEGIES, sortTransactions are imported from src/filters.js
 
 // Function to toggle sort
+// #T4G-0009
 function toggleSort(column) {
     const next = computeNextSortState(filterState, column);
     filterState.sortColumn = next.sortColumn;
@@ -698,6 +733,7 @@ function toggleSort(column) {
 }
 
 // Function to clear all filters
+// #T4G-0009
 function clearFilters() {
     filterState = createDefaultFilterState();
 
@@ -719,11 +755,13 @@ function clearFilters() {
 // Transaction List Display
 // ===========================
 
+// #T4G-0009
 function getSortIndicator(column) {
     if (filterState.sortColumn !== column) return '';
     return filterState.sortDirection === 'asc' ? ' ▲' : ' ▼';
 }
 
+// #T4G-0007, #T4G-0009
 function buildTransactionTableHeader() {
     return `
         <thead>
@@ -741,6 +779,7 @@ function buildTransactionTableHeader() {
     `;
 }
 
+// #T4G-0007
 function buildTransactionTableRow(transaction, userMap) {
     const user = userMap.get(transaction.userId);
     const userName = user ? user.name : 'Unknown';
@@ -771,6 +810,7 @@ function buildTransactionTableRow(transaction, userMap) {
     `;
 }
 
+// #T4G-0008
 function buildMonthGroupRow(month) {
     const label = new Date(`${month}-01T00:00:00`).toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
     return `
@@ -780,15 +820,17 @@ function buildMonthGroupRow(month) {
     `;
 }
 
-function buildUserSummaryRow(userName, month, ytdIncome) {
+// #T4G-0008
+function buildUserSummaryRow(userName, month, monthIncome, ytdIncome) {
     const monthLabel = new Date(`${month}-01T00:00:00`).toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
     return `
         <tr class="ytd-summary-row">
-            <td colspan="8">${sanitizeInput(userName)} — YTD as of ${monthLabel}: ₾ ${formatCurrency(ytdIncome)}</td>
+            <td colspan="8">${sanitizeInput(userName)} — ${monthLabel}: ₾ ${formatCurrency(monthIncome)} · YTD: ₾ ${formatCurrency(ytdIncome)}</td>
         </tr>
     `;
 }
 
+// #T4G-0007
 function buildTransactionTableFooter(totalGEL) {
     return `
         <tfoot>
@@ -800,15 +842,17 @@ function buildTransactionTableFooter(totalGEL) {
     `;
 }
 
-function buildTransactionTable(transactions, userMap, monthlyYTD, filterStatus, sortDirection) {
+// #T4G-0007, #T4G-0008
+function buildTransactionTable(transactions, userMap, monthlyYTD, monthlyIncome, filterStatus, sortDirection) {
     const header = buildTransactionTableHeader();
     const groups = groupTransactionsByMonthAndUser(transactions, userMap, sortDirection);
 
     const rows = groups.map(({ month, users }) => {
         const monthRow = buildMonthGroupRow(month);
         const userRows = users.map(({ userId, userName, transactions: userTransactions }) => {
+            const monthIncome = monthlyIncome.get(`${userId}_${month}`) || 0;
             const ytdIncome = monthlyYTD.get(`${userId}_${month}`) || 0;
-            const summaryRow = buildUserSummaryRow(userName, month, ytdIncome);
+            const summaryRow = buildUserSummaryRow(userName, month, monthIncome, ytdIncome);
             const txRows = userTransactions.map(t => buildTransactionTableRow(t, userMap)).join('');
             return summaryRow + txRows;
         }).join('');
@@ -828,6 +872,7 @@ function buildTransactionTable(transactions, userMap, monthlyYTD, filterStatus, 
     `;
 }
 
+// #T4G-0007, #T4G-0008, #T4G-0009
 function renderTransactionList() {
     const transactionListDiv = document.getElementById('transactionList');
     if (!transactionListDiv) return;
@@ -842,12 +887,13 @@ function renderTransactionList() {
     const users = loadUsers();
     const userMap = buildUserLookupMap(users);
     const monthlyYTD = calculateMonthlyYTDByUser(allTransactions);
+    const monthlyIncome = calculateMonthlyIncomeByUser(allTransactions);
 
     let transactions = applyFilters(allTransactions, filterState);
     transactions = sortTransactions(transactions, userMap, filterState);
 
     const filterStatus = `Showing ${transactions.length} of ${allTransactions.length} transactions`;
-    const tableHTML = buildTransactionTable(transactions, userMap, monthlyYTD, filterStatus, filterState.sortDirection);
+    const tableHTML = buildTransactionTable(transactions, userMap, monthlyYTD, monthlyIncome, filterStatus, filterState.sortDirection);
 
     transactionListDiv.innerHTML = tableHTML;
 }
@@ -860,6 +906,7 @@ function renderTransactionList() {
 
 // Creates a downloadable blob from file content and triggers the browser's
 // save dialog via a throwaway anchor. Shared by every export path below.
+// #T4G-0020
 function downloadFile(content, filename, mimeType) {
     const blob = new Blob([content], { type: mimeType });
     const link = document.createElement('a');
@@ -873,6 +920,7 @@ function downloadFile(content, filename, mimeType) {
     document.body.removeChild(link);
 }
 
+// #T4G-0020
 function exportToCSV() {
     const allTransactions = loadTransactions();
 
@@ -907,6 +955,7 @@ function exportToCSV() {
     downloadFile(csvContent, filename, 'text/csv;charset=utf-8;');
 }
 
+// #T4G-0020
 function exportUsersCSV() {
     const users = loadUsers();
 
@@ -921,6 +970,7 @@ function exportUsersCSV() {
     downloadFile(csvContent, `gel-users-${todayISODate}.csv`, 'text/csv;charset=utf-8;');
 }
 
+// #T4G-0020
 function exportBackupJSON() {
     const schemaVersion = currentDataSchemaVersion();
     const keysToBackup = selectBackupKeys(getAllStorageKeys(), schemaVersion);
@@ -940,6 +990,7 @@ function exportBackupJSON() {
 // Function to import transactions from CSV
 // buildImportResult (parsing/validation/dedup/user-creation) is imported from src/csv.js
 
+// #T4G-0020
 function processCSVContent(content) {
     const existingTransactions = loadTransactions();
     const existingUsers = loadUsers();
@@ -952,6 +1003,7 @@ function processCSVContent(content) {
     return stats;
 }
 
+// #T4G-0020
 function importFromCSV(file) {
     if (!file) {
         alert('No file selected.');
@@ -989,14 +1041,17 @@ function importFromCSV(file) {
 // Export/Import Modals
 // ===========================
 
+// #T4G-0020
 function openExportModal() {
     showElement(document.getElementById('exportModal'));
 }
 
+// #T4G-0020
 function closeExportModal() {
     hideElement(document.getElementById('exportModal'));
 }
 
+// #T4G-0020
 function openImportModal() {
     document.getElementById('importOverwriteCheckbox').checked = false;
     hideElement(document.getElementById('importOverwriteWarning'));
@@ -1004,10 +1059,12 @@ function openImportModal() {
     showElement(document.getElementById('importModal'));
 }
 
+// #T4G-0020
 function closeImportModal() {
     hideElement(document.getElementById('importModal'));
 }
 
+// #T4G-0020
 function toggleImportOverwriteWarning() {
     const checked = document.getElementById('importOverwriteCheckbox').checked;
     const warning = document.getElementById('importOverwriteWarning');
@@ -1021,12 +1078,14 @@ function toggleImportOverwriteWarning() {
 // Clears the chosen-file indicator and disables Start Import, so picking a
 // file only stages it - the user reviews the overwrite checkbox/warning
 // and clicks Start Import to actually run it.
+// #T4G-0020
 function resetImportFileSelection() {
     document.getElementById('importFileInput').value = '';
     hideElement(document.getElementById('importSelectedFileName'));
     document.getElementById('startImportButton').disabled = true;
 }
 
+// #T4G-0020
 function onImportFileChosen() {
     const fileInput = document.getElementById('importFileInput');
     const file = fileInput.files[0];
@@ -1042,6 +1101,7 @@ function onImportFileChosen() {
     document.getElementById('startImportButton').disabled = false;
 }
 
+// #T4G-0020
 function startImport() {
     const file = document.getElementById('importFileInput').files[0];
     handleImportFile(file);
@@ -1049,6 +1109,7 @@ function startImport() {
 
 // Routes a .csv file to the transactions or users importer based on its
 // header (see detectCSVKind, src/csv.js).
+// #T4G-0020
 function processCSVImportAuto(content, overwrite) {
     const header = content.split('\n')[0].trim();
     const kind = detectCSVKind(header);
@@ -1081,6 +1142,7 @@ function processCSVImportAuto(content, overwrite) {
 // merges users/transactions only, leaving settings (theme, versions, rate
 // cache) untouched. overwrite=true wipes every currently-tracked key and
 // writes the migrated data back, a true wholesale restore.
+// #T4G-0020, #T4G-0021
 function processJSONImport(content, overwrite) {
     const { data, meta } = parseBackupJSON(content);
     const backupSchemaVersion = Number(meta.dataSchemaVersion) || 1;
@@ -1102,6 +1164,7 @@ function processJSONImport(content, overwrite) {
     return 'Backup merged! Users and transactions from the file were added without duplicating existing data.';
 }
 
+// #T4G-0020
 function handleImportFile(file) {
     if (!file) {
         alert('No file selected.');
@@ -1136,6 +1199,7 @@ function handleImportFile(file) {
 }
 
 // Function to load demo data
+// #T4G-0012
 function loadDemoData() {
     // Check if transactions already exist
     const existingTransactions = loadTransactions();
@@ -1177,6 +1241,7 @@ const CLEAR_CHECKBOX_IDS = [
     'clearSettingsCheckbox'
 ];
 
+// #T4G-0014
 function openClearDataModal() {
     [...CLEAR_CHECKBOX_IDS, 'clearEverythingCheckbox'].forEach(id => {
         document.getElementById(id).checked = false;
@@ -1187,10 +1252,12 @@ function openClearDataModal() {
     showElement(document.getElementById('clearDataModal'));
 }
 
+// #T4G-0014
 function closeClearDataModal() {
     hideElement(document.getElementById('clearDataModal'));
 }
 
+// #T4G-0014
 function setClearCheckboxesDisabled(disabled) {
     CLEAR_CHECKBOX_IDS.forEach(id => {
         document.getElementById(id).disabled = disabled;
@@ -1199,6 +1266,7 @@ function setClearCheckboxesDisabled(disabled) {
 
 // "Reset everything" implies every other category, so checking it locks the
 // individual checkboxes on (and re-enables them if unchecked again).
+// #T4G-0014
 function toggleClearEverything() {
     const everything = document.getElementById('clearEverythingCheckbox').checked;
     setClearCheckboxesDisabled(everything);
@@ -1210,6 +1278,7 @@ function toggleClearEverything() {
     onClearSelectionChange();
 }
 
+// #T4G-0014
 function onClearSelectionChange() {
     const usersChecked = document.getElementById('clearUsersCheckbox').checked;
     const everythingChecked = document.getElementById('clearEverythingCheckbox').checked;
@@ -1225,6 +1294,7 @@ function onClearSelectionChange() {
     document.getElementById('clearDataConfirmButton').disabled = !anySelected;
 }
 
+// #T4G-0014
 function confirmClearData() {
     const selection = {
         transactions: document.getElementById('clearTransactionsCheckbox').checked,
@@ -1259,6 +1329,7 @@ function confirmClearData() {
 // ===========================
 
 // Function to render user list
+// #T4G-0005
 function renderUserList() {
     const users = loadUsers();
     const userListDiv = document.getElementById('userList');
@@ -1320,6 +1391,7 @@ function renderUserList() {
 }
 
 // Function to save user from input fields
+// #T4G-0005
 function saveUserFromInputs(userId) {
     const nameInput = document.getElementById(`userName-${userId}`);
     const taxpayerIdInput = document.getElementById(`userTaxpayerId-${userId}`);
@@ -1347,6 +1419,7 @@ function saveUserFromInputs(userId) {
 }
 
 // Function to update user field
+// #T4G-0005
 function updateUserField(userId, field, value) {
     const user = getUserById(userId);
     if (user) {
@@ -1356,6 +1429,7 @@ function updateUserField(userId, field, value) {
 }
 
 // Function to populate user selectors
+// #T4G-0005
 function populateUserSelectors() {
     const users = loadUsers();
 
@@ -1392,6 +1466,7 @@ function populateUserSelectors() {
 }
 
 // Function to populate currency filter
+// #T4G-0009
 function populateCurrencyFilter() {
     const transactions = loadTransactions();
     const currencies = new Set();
@@ -1417,6 +1492,7 @@ function populateCurrencyFilter() {
 }
 
 // Function to delete all users
+// #T4G-0014
 function deleteAllUsers() {
     const users = loadUsers();
     const transactions = loadTransactions();
@@ -1450,6 +1526,7 @@ function deleteAllUsers() {
 }
 
 // Function to add new user
+// #T4G-0005
 function addNewUser() {
     const userName = prompt('Enter user name:');
     if (!userName) return;
@@ -1466,6 +1543,7 @@ function addNewUser() {
 }
 
 // Function to toggle user management section
+// #T4G-0005
 function toggleUserManagement() {
     const userSection = document.getElementById('userManagementSection');
     if (userSection) {
@@ -1474,11 +1552,13 @@ function toggleUserManagement() {
 }
 
 // Function to get today's date in YYYY-MM-DD format
+// #T4G-0003
 function getTodayDate() {
     return new Date().toISOString().split('T')[0];
 }
 
 // Function to set max date on date inputs
+// #T4G-0003
 function setMaxDates() {
     const today = getTodayDate();
     const datePicker = document.getElementById('datePicker');
@@ -1491,6 +1571,7 @@ function setMaxDates() {
 }
 
 // Function to validate date is not in future
+// #T4G-0003
 function isValidDate(dateString) {
     if (!dateString) return false;
     const selectedDate = new Date(dateString);
@@ -1498,6 +1579,7 @@ function isValidDate(dateString) {
     return selectedDate <= today;
 }
 
+// #T4G-0009
 function handleFilterChange(filterKey, value) {
     filterState[filterKey] = value;
     renderTransactionList();
@@ -1510,6 +1592,7 @@ const debouncedFilterChange = debounce((filterKey, value) => {
     handleFilterChange(filterKey, value);
 }, FILTER_DEBOUNCE_MS);
 
+// #T4G-0009
 function setupFilterEventListeners() {
     const filterUser = document.getElementById('filterUser');
     const filterCurrency = document.getElementById('filterCurrency');

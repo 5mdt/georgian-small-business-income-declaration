@@ -2,18 +2,20 @@
 
 **Tags:** #tag1 #tag2
 
-## Description
+## User Story
+
+## Behavior
 
 ## Implementation
 
-## Configuration
+## Quirks & Decisions
 
 ## Testing
 
-### Human Testing
+### Human
 
-### Unit Testing
+### Unit
 
-### Integration Testing
+### Integration
 
 ## Status

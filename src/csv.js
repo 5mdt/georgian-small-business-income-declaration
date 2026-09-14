@@ -16,6 +16,7 @@ import { sanitizeInput } from './dom.js';
  * @param {Array<string>} values - Parsed CSV row (see validateCSVRow for column layout)
  * @returns {Object} Transaction
  */
+// #T4G-0020
 export function extractTransactionFromCSVRow(values) {
     const hasYTD = values.length >= 13;
 
@@ -45,6 +46,7 @@ export function extractTransactionFromCSVRow(values) {
  * @param {Set<string>} userIds
  * @returns {{created: boolean, user?: Object, error?: string}}
  */
+// #T4G-0020
 export function ensureUserExistsFromCSV(userId, userName, taxpayerId, users, userIds) {
     if (userIds.has(userId)) {
         return { created: false };
@@ -80,6 +82,7 @@ export function ensureUserExistsFromCSV(userId, userName, taxpayerId, users, use
  * @returns {{users: Array<Object>, transactions: Array<Object>, stats: {imported: number, skipped: number, usersCreated: number}}}
  * @throws {Error} If the CSV header is missing required columns
  */
+// #T4G-0020
 export function buildImportResult(content, existingTransactions, existingUsers, overwrite = false) {
     const lines = content.split('\n');
     const header = lines[0].trim();
@@ -127,7 +130,9 @@ export function buildImportResult(content, existingTransactions, existingUsers, 
 const EXPORT_CSV_HEADER = 'Date,User ID,User Name,Taxpayer ID,Currency Code,Currency Name,Amount,Exchange Rate,Quantity,Converted GEL,YTD Income,Comment,Timestamp\n';
 const USERS_CSV_HEADER = 'User ID,User Name,Taxpayer ID\n';
 
+// #T4G-0020
 export const APP_NAME = 'Currency to GEL Converter';
+// #T4G-0020
 export const GITHUB_URL = 'https://github.com/5mdt/georgian-small-business-income-declaration';
 
 /**
@@ -145,6 +150,7 @@ export const GITHUB_URL = 'https://github.com/5mdt/georgian-small-business-incom
  *   injectable fetch.
  * @returns {string} Comment tail text
  */
+// #T4G-0019, #T4G-0020
 function buildCommentTail(dataSchemaVersion, instanceUrl) {
     let tail = `# ${APP_NAME} - CSV export\n`;
     tail += `# ${GITHUB_URL}\n`;
@@ -165,6 +171,7 @@ function buildCommentTail(dataSchemaVersion, instanceUrl) {
  * @param {string} [instanceUrl] - The app's own URL at export time, if known
  * @returns {string} CSV content, including header
  */
+// #T4G-0020
 export function buildExportCSVContent(transactions, calculateYTDFn, getUserByIdFn, dataSchemaVersion, instanceUrl) {
     let csvContent = EXPORT_CSV_HEADER;
 
@@ -192,6 +199,7 @@ export function buildExportCSVContent(transactions, calculateYTDFn, getUserByIdF
  * @param {string} todayISODate - YYYY-MM-DD to embed in the filename
  * @returns {string} Filename
  */
+// #T4G-0020
 export function buildExportFilename(filterState, getUserByIdFn, todayISODate) {
     if (filterState.userId !== 'all') {
         const user = getUserByIdFn(filterState.userId);
@@ -209,6 +217,7 @@ export function buildExportFilename(filterState, getUserByIdFn, todayISODate) {
  * @param {string} [instanceUrl] - The app's own URL at export time, if known
  * @returns {string} CSV content, including header
  */
+// #T4G-0020
 export function buildUsersCSVContent(users, dataSchemaVersion, instanceUrl) {
     let csvContent = USERS_CSV_HEADER;
 
@@ -234,6 +243,7 @@ export function buildUsersCSVContent(users, dataSchemaVersion, instanceUrl) {
  * @returns {{users: Array<Object>, stats: {imported: number, skipped: number}}}
  * @throws {Error} If the CSV header is missing required columns
  */
+// #T4G-0020
 export function buildUsersImportResult(content, existingUsers, overwrite = false) {
     const lines = content.split('\n');
     const header = lines[0].trim();
@@ -277,6 +287,7 @@ export function buildUsersImportResult(content, existingUsers, overwrite = false
  * @param {string} header - CSV header line
  * @returns {'transactions'|'users'|null}
  */
+// #T4G-0020
 export function detectCSVKind(header) {
     const transactionColumns = ['Date', 'Currency Code', 'Converted GEL'];
     const usersColumns = ['User ID', 'User Name', 'Taxpayer ID'];

@@ -35,6 +35,7 @@ const LEGACY_KEY_MAP = {
  * @param {Object} snapshot - Plain {key: value} localStorage snapshot
  * @returns {Object} New snapshot with renamed keys
  */
+// #T4G-0021
 export function migrateV1toV2(snapshot) {
     const result = {};
     const renamedTargets = new Set();
@@ -68,6 +69,7 @@ export function migrateV1toV2(snapshot) {
 // schema `from` to schema `to`; append new entries here as
 // DATA_SCHEMA_VERSION (src/version.js) is bumped. Never reorder or remove
 // past entries - a user's stored version may be arbitrarily old.
+// #T4G-0021
 export const MIGRATIONS = [
     { from: 1, to: 2, migrate: migrateV1toV2 }
 ];
@@ -80,6 +82,7 @@ export const MIGRATIONS = [
  * @param {number} toVersion - The schema version to migrate up to
  * @returns {Object} New snapshot, migrated to toVersion
  */
+// #T4G-0021
 export function runMigrations(snapshot, fromVersion, toVersion) {
     return MIGRATIONS
         .filter(step => step.from >= fromVersion && step.to <= toVersion)

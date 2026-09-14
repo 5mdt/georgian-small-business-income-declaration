@@ -16,6 +16,7 @@ import { STORAGE_KEYS } from './keys.js';
  * are valid.
  * @returns {Array<Object>} Array of user objects
  */
+// #T4G-0005
 export function loadUsers() {
     const users = getFromStorage(STORAGE_KEYS.users);
 
@@ -40,6 +41,7 @@ export function loadUsers() {
  * @param {Object} userData
  * @returns {boolean} True on success
  */
+// #T4G-0005
 export function updateUserInStorage(userData) {
     if (!validateUser(userData)) {
         console.error('Invalid user data', userData);
@@ -66,6 +68,7 @@ export function updateUserInStorage(userData) {
  * @param {Array<Object>} transactions - Current transactions
  * @returns {{allowed: boolean, reason?: string}}
  */
+// #T4G-0006
 export function canDeleteUser(userId, users, transactions) {
     if (users.length <= 1) {
         return userId === 'user'
@@ -92,6 +95,7 @@ export function canDeleteUser(userId, users, transactions) {
  * @param {string} userId
  * @returns {boolean} True on success
  */
+// #T4G-0005, #T4G-0006
 export function removeUserFromStorage(userId) {
     const users = loadUsers();
     const filteredUsers = users.filter(u => u.id !== userId);
@@ -103,6 +107,7 @@ export function removeUserFromStorage(userId) {
  * @param {string} userId
  * @returns {Object|undefined}
  */
+// #T4G-0005
 export function getUserById(userId) {
     const users = loadUsers();
     return users.find(u => u.id === userId);

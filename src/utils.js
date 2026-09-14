@@ -2,6 +2,7 @@
 // Constants
 // ===========================
 
+// #T4G-0017
 export const CURRENCY_SYMBOLS = {
     'GEL': '₾', 'USD': '$', 'EUR': '€', 'GBP': '£', 'RUB': '₽',
     'TRY': '₺', 'JPY': '¥', 'CNY': '¥', 'CHF': 'CHF', 'AUD': 'A$',
@@ -10,6 +11,7 @@ export const CURRENCY_SYMBOLS = {
     'AED': 'د.إ', 'SAR': '﷼', 'THB': '฿'
 };
 
+// #T4G-0002, #T4G-0003, #T4G-0013, #T4G-0020
 export const ERROR_MESSAGES = {
     NO_DATE: 'Please select a date.',
     NO_CURRENCY: 'Please select a currency.',
@@ -26,9 +28,13 @@ export const ERROR_MESSAGES = {
     CURRENCY_NOT_FOUND: 'Selected currency not found.'
 };
 
+// #T4G-0016
 export const MAX_AMOUNT = 1000000000;
+// #T4G-0003, #T4G-0016
 export const MIN_YEAR = 2000;
+// #T4G-0002
 export const API_TIMEOUT = 10000;
+// #T4G-0009
 export const FILTER_DEBOUNCE_MS = 300;
 
 // ===========================
@@ -40,6 +46,7 @@ export const FILTER_DEBOUNCE_MS = 300;
  * @param {string} dateString - ISO date string (YYYY-MM-DD)
  * @returns {boolean} True if valid
  */
+// #T4G-0003, #T4G-0016
 export function validateDateString(dateString) {
     if (!dateString || typeof dateString !== 'string') return false;
 
@@ -74,6 +81,7 @@ export function validateDateString(dateString) {
  * @param {number} amount - Amount to validate
  * @returns {boolean} True if valid
  */
+// #T4G-0016
 export function validateAmount(amount) {
     if (typeof amount !== 'number') return false;
     if (isNaN(amount) || !isFinite(amount)) return false;
@@ -86,6 +94,7 @@ export function validateAmount(amount) {
  * @param {string} code - 3-letter currency code
  * @returns {boolean} True if valid
  */
+// #T4G-0016
 export function validateCurrencyCode(code) {
     if (!code || typeof code !== 'string') return false;
     return /^[A-Z]{3}$/.test(code);
@@ -96,6 +105,7 @@ export function validateCurrencyCode(code) {
  * @param {Object} user - User object
  * @returns {boolean} True if valid
  */
+// #T4G-0016
 export function validateUser(user) {
     if (!user || typeof user !== 'object') return false;
     if (!user.id || typeof user.id !== 'string') return false;
@@ -108,6 +118,7 @@ export function validateUser(user) {
  * @param {Object} transaction - Transaction object
  * @returns {boolean} True if valid
  */
+// #T4G-0016
 export function validateTransaction(transaction) {
     if (!transaction || typeof transaction !== 'object') return false;
     if (!transaction.id || !transaction.userId) return false;
@@ -127,6 +138,7 @@ export function validateTransaction(transaction) {
  * @param {number} value - Value to format
  * @returns {string} Formatted currency string
  */
+// #T4G-0017
 export function formatCurrency(value) {
     if (!isFinite(value)) return '0.00';
     return value.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
@@ -137,6 +149,7 @@ export function formatCurrency(value) {
  * @param {string} currencyCode - 3-letter currency code
  * @returns {string} Currency symbol or code if not found
  */
+// #T4G-0017
 export function getCurrencySymbol(currencyCode) {
     return CURRENCY_SYMBOLS[currencyCode] || currencyCode;
 }
@@ -149,6 +162,7 @@ export function getCurrencySymbol(currencyCode) {
  * Generates a unique user ID
  * @returns {string} Unique user ID
  */
+// #T4G-0005
 export function generateUserId() {
     return 'user_' + Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
@@ -157,6 +171,7 @@ export function generateUserId() {
  * Generates a unique transaction ID
  * @returns {string} Unique transaction ID
  */
+// #T4G-0007
 export function generateTransactionId() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
@@ -172,6 +187,7 @@ export function generateTransactionId() {
  * @returns {number} Converted amount in GEL, or 0 if the currency data can't
  *   produce a finite result (e.g. quantity <= 0, non-finite rate)
  */
+// #T4G-0001
 export function convertToGEL(amount, currency) {
     if (!currency) return 0;
     if (currency.code === 'GEL') {
@@ -189,6 +205,7 @@ export function convertToGEL(amount, currency) {
  * @param {Array} transactions - Array of transaction objects
  * @returns {Map} Map of transaction ID to YTD value
  */
+// #T4G-0008
 export function precalculateAllYTD(transactions) {
     const ytdCache = new Map();
 
@@ -229,6 +246,7 @@ export function precalculateAllYTD(transactions) {
  * @param {Array} transactions - All transactions
  * @returns {Map<string, number>} userId_YYYY-MM -> YTD total through that month
  */
+// #T4G-0008
 export function calculateMonthlyYTDByUser(transactions) {
     const validTransactions = transactions.filter(tx => validateTransaction(tx));
     const sorted = [...validTransactions].sort((a, b) => {
@@ -252,6 +270,28 @@ export function calculateMonthlyYTDByUser(transactions) {
 }
 
 /**
+ * Computes, for each user and calendar month, that user's total GEL income
+ * within that month alone (not a running year total, unlike
+ * `calculateMonthlyYTDByUser`). Shown next to the YTD figure in the
+ * per-user summary row so the reader doesn't have to add up the month's
+ * transaction rows by hand. Order-independent, so no sort is needed.
+ * @param {Array} transactions - All transactions
+ * @returns {Map<string, number>} userId_YYYY-MM -> total GEL income in that month
+ */
+// #T4G-0008
+export function calculateMonthlyIncomeByUser(transactions) {
+    const validTransactions = transactions.filter(tx => validateTransaction(tx));
+    const monthlyIncome = new Map();
+
+    for (const tx of validTransactions) {
+        const monthKey = `${tx.userId}_${tx.date.slice(0, 7)}`;
+        monthlyIncome.set(monthKey, (monthlyIncome.get(monthKey) || 0) + tx.convertedGEL);
+    }
+
+    return monthlyIncome;
+}
+
+/**
  * Groups transactions by calendar month, then by user, for table rendering.
  * Months are ordered by their YYYY-MM key honoring sortDirection; users
  * within a month are ordered by display name; a user's transactions keep
@@ -261,6 +301,7 @@ export function calculateMonthlyYTDByUser(transactions) {
  * @param {string} sortDirection - 'asc' or 'desc'
  * @returns {Array<{month: string, users: Array<{userId: string, userName: string, transactions: Array}>}>}
  */
+// #T4G-0008
 export function groupTransactionsByMonthAndUser(transactions, userMap, sortDirection) {
     const monthGroups = new Map();
 
@@ -300,6 +341,7 @@ export function groupTransactionsByMonthAndUser(transactions, userMap, sortDirec
  * @param {Array} allTransactions - All transactions
  * @returns {number} YTD value
  */
+// #T4G-0008
 export function calculateYTDForTransaction(transaction, allTransactions) {
     if (!validateTransaction(transaction)) return 0;
 
@@ -345,6 +387,7 @@ export function calculateYTDForTransaction(transaction, allTransactions) {
  * @returns {boolean} True if valid
  * @throws {Error} If required columns are missing
  */
+// #T4G-0020
 export function validateCSVHeader(header) {
     const requiredColumns = ['Date', 'Currency Code', 'Converted GEL'];
     const missingColumns = requiredColumns.filter(col => !header.includes(col));
@@ -361,6 +404,7 @@ export function validateCSVHeader(header) {
  * @returns {boolean} True if valid
  * @throws {Error} If required columns are missing
  */
+// #T4G-0020
 export function validateUsersCSVHeader(header) {
     const requiredColumns = ['User ID', 'User Name', 'Taxpayer ID'];
     const missingColumns = requiredColumns.filter(col => !header.includes(col));
@@ -380,6 +424,7 @@ export function validateUsersCSVHeader(header) {
  * @param {string} line - CSV line
  * @returns {Array<string>} Array of values
  */
+// #T4G-0020
 export function parseCSVLine(line) {
     const values = [];
     let current = '';
@@ -418,6 +463,7 @@ export function parseCSVLine(line) {
  * @param {Array<string>} values - CSV row values
  * @returns {boolean} True if valid
  */
+// #T4G-0016, #T4G-0020
 export function validateCSVRow(values) {
     if (values.length < 12) return false;
     if (!validateDateString(values[0])) return false;
@@ -435,6 +481,7 @@ export function validateCSVRow(values) {
  * @param {Array} users - Array of user objects
  * @returns {Map} Map of user ID to user object
  */
+// #T4G-0007
 export function buildUserLookupMap(users) {
     return new Map(users.map(u => [u.id, u]));
 }
@@ -443,6 +490,7 @@ export function buildUserLookupMap(users) {
  * Creates default user object
  * @returns {Object} Default user
  */
+// #T4G-0005
 export function createDefaultUser() {
     return { id: 'user', name: 'user', taxpayerId: '' };
 }
@@ -453,6 +501,7 @@ export function createDefaultUser() {
  * @param {number} wait - Wait time in ms
  * @returns {Function} Debounced function
  */
+// #T4G-0009
 export function debounce(func, wait) {
     let timeout;
     return function executedFunction(...args) {
@@ -472,6 +521,7 @@ export function debounce(func, wait) {
  * @param {string} b - Second version
  * @returns {number} Negative if a < b, positive if a > b, 0 if equal
  */
+// #T4G-0018
 export function compareVersions(a, b) {
     const partsA = a.split('.').map(Number);
     const partsB = b.split('.').map(Number);

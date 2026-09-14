@@ -2,7 +2,12 @@
 
 **Tags:** #currency #ui
 
-## Description
+## User Story
+
+As a small business owner, I want monetary amounts shown with clear grouping and
+the right currency symbol, so that large figures are easy to read at a glance.
+
+## Behavior
 
 Displays monetary amounts with two decimal places, thousand separators, and
 the correct currency symbol.
@@ -18,11 +23,12 @@ the correct currency symbol.
   anything not in the map.
 
 Used throughout `script.js` rendering: conversion result, transaction table
-rows/footer ([[T4G-0007]]), user-facing amounts generally.
+rows/footer ([T4G-0007](T4G-0007-transaction-management.md)), user-facing
+amounts generally.
 
 ## Testing
 
-### Unit Testing
+### Unit
 
 `tests/unit/formatting.test.js` (`Currency Formatting`,
 `Currency Symbol Lookup`): decimal places, thousand separators (incl. with
@@ -32,4 +38,4 @@ coverage.
 
 ## Status
 
-Implemented.
+Implemented
