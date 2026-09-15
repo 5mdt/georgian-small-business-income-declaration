@@ -18,27 +18,16 @@ data…" modal with one checkbox per category, behind one confirmation.
 
 `src/clear.js` `clearData(selection)` — the pure orchestrator (no DOM),
 given `{ transactions, users, rateCache, settings, everything }` booleans:
-- `everything` — wipes every `t4g_`-prefixed key in both the active
-  storage backend and `sessionStorage` (see the `settings` note below),
-  ignoring every other flag. A true factory reset, including the version
-  metadata keys ([T4G-0018](T4G-0018-update-notification.md),
-  [T4G-0019](T4G-0019-data-schema-version.md)).
-- `users` — resets `users` to `[createDefaultUser()]` and removes
-  `transactions` (cascades, since every transaction belongs to a user —
-  same effect as `deleteAllUsers()`, see below). `transactions` alone is
-  ignored when `users` is also set.
-- `transactions` — `removeFromStorage(STORAGE_KEYS.transactions)`
-  ([T4G-0013](T4G-0013-local-storage-persistence.md)); keeps users intact.
-- `rateCache` — removes every key starting with `CURRENCY_RATE_KEY_PREFIX`
-  (`t4g_cache_currencyRates_`), forcing fresh NBG fetches
-  ([T4G-0002](T4G-0002-nbg-rate-fetch-cache.md)).
-- `settings` — removes every `t4g_config_` key (theme, add-transaction
-  checkbox) from the active backend. Also explicitly sweeps
-  `sessionStorage` for the same prefix, since `toggleCollapsible`
-  (script.js) always writes collapsible-section state there directly,
-  regardless of which backend `getStorage()` picked.
 
-The modal groups its checkboxes into three risk tiers under colored headings
+| Category | Zone | Effect |
+| --- | --- | --- |
+| `rateCache` | Green | Removes every key starting with `CURRENCY_RATE_KEY_PREFIX` (`t4g_cache_currencyRates_`), forcing fresh NBG fetches ([T4G-0002](T4G-0002-nbg-rate-fetch-cache.md)) |
+| `settings` | Green | Removes every `t4g_config_` key (theme, add-transaction checkbox) from the active backend; also sweeps `sessionStorage` for the same prefix, since `toggleCollapsible` (script.js) always writes collapsible-section state there directly regardless of which backend `getStorage()` picked |
+| `transactions` | Critical | `removeFromStorage(STORAGE_KEYS.transactions)` ([T4G-0013](T4G-0013-local-storage-persistence.md)); keeps users intact |
+| `users` | Critical | Resets `users` to `[createDefaultUser()]` and removes `transactions` (cascades, since every transaction belongs to a user — same effect as `deleteAllUsers()`, see below); `transactions` alone is ignored when `users` is also set |
+| `everything` | Critical | Wipes every `t4g_`-prefixed key in both the active storage backend and `sessionStorage` (per the `settings` sweep above), ignoring every other flag — a true factory reset, including the version metadata keys ([T4G-0018](T4G-0018-update-notification.md), [T4G-0019](T4G-0019-data-schema-version.md)) |
+
+The modal groups its checkboxes into these same risk tiers under colored headings
 (`.zone-header-*`, `style.css` — see its comments for the WCAG-contrast
 rationale): "Green zone" (cached exchange rates, settings & preferences —
 both freely re-derived/re-defaulted), "Warning zone" (the disabled
@@ -85,6 +74,14 @@ true})` does), bypassing the per-user delete checks in
   of stacking the Export modal on top of the Clear Data modal.
   Proposed: keep as-is — reusing the function avoids a two-modal stack for
   one non-destructive action.
+- Quirk: the Clear Data modal only closes via its own "Cancel" button — no
+  backdrop click or Escape key, same gap as the Export/Import modals
+  ([T4G-0020](T4G-0020-backup-and-restore.md)).
+  Proposed: close on backdrop click, `Escape`, and the Android back
+  gesture (`popstate`), via the same shared dismissal helper as
+  [T4G-0020](T4G-0020-backup-and-restore.md) — a destructive-action modal
+  still benefits from an easy cancel path, since dismissal never confirms
+  the clear.
 
 ## Testing
 

@@ -37,6 +37,14 @@ each attributed to a user and rendered in the transaction table.
 - Transaction shape:
   `{ id, userId, date, currencyCode, currencyName, amount, rate, quantity, convertedGEL, comment, timestamp }`.
 
+## Quirks & Decisions
+
+- Quirk: the currency column renders `currencyCode - currencyName` (e.g.
+  `USD - US Dollar`) in full on every row, which is wider than it needs to
+  be for a column that's scanned by code, not read as prose.
+  Proposed: show only `currencyCode`, with `currencyName` moved to a
+  `title` attribute (native tooltip) on the cell.
+
 ## Testing
 
 ### Human

@@ -7,6 +7,7 @@ import {
     saveCurrencyRatesToCache,
     fetchCurrencyRates
 } from '../../src/currency.js';
+import { API_TIMEOUT } from '../../src/utils.js';
 
 const sampleResponse = [{
     date: '2025-03-29T00:00:00',
@@ -118,5 +119,37 @@ describe('fetchCurrencyRates', () => {
 
         await expect(fetchCurrencyRates('2025-01-15', fakeFetch)).rejects.toThrow('network down');
         expect(getCurrencyRatesFromCache('2025-01-15')).toBeNull();
+    });
+
+    it('passes an AbortSignal instead of the unsupported fetch "timeout" option', async () => {
+        const fakeFetch = vi.fn().mockResolvedValue({
+            ok: true,
+            json: () => Promise.resolve(sampleResponse)
+        });
+
+        await fetchCurrencyRates('2025-01-15', fakeFetch);
+
+        const [, options] = fakeFetch.mock.calls[0];
+        expect(options.timeout).toBeUndefined();
+        expect(options.signal).toBeInstanceOf(AbortSignal);
+    });
+
+    it('aborts and rejects with a friendly timeout error when the request hangs', async () => {
+        vi.useFakeTimers();
+        const fakeFetch = vi.fn((url, { signal }) => new Promise((resolve, reject) => {
+            signal.addEventListener('abort', () => {
+                const abortError = new Error('The operation was aborted');
+                abortError.name = 'AbortError';
+                reject(abortError);
+            });
+        }));
+
+        const result = fetchCurrencyRates('2025-01-15', fakeFetch);
+        const assertion = expect(result).rejects.toThrow(/timed out/i);
+
+        await vi.advanceTimersByTimeAsync(API_TIMEOUT);
+        await assertion;
+
+        vi.useRealTimers();
     });
 });

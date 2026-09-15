@@ -92,19 +92,10 @@ exported (`currentDataSchemaVersion()`, same value used for the
 schema-of-data tag above) — **not a snapshot of every `localStorage` key
 unconditionally**:
 
-- **Schema version `1`** — **legacy scope**: `users`, `transactions`, and
-  every `t4g_`-prefixed key (at schema `1`, just `t4g_appVersion`/
-  `t4g_dataSchemaVersion`). Exchange-rate cache (`currencyRates_<date>`) and
-  UI settings (`themePreference`, `addTransaction`) are excluded — genuine
-  schema-`1` data predates the `t4g_` namespace entirely, so they're still
-  under their unprefixed names and don't match either branch of the filter.
-- **Schema version `2`+ (today's real shape, since
-  [T4G-0021](T4G-0021-schema-migration-key-namespacing.md))** —
-  **`t4g_`-only scope**: only keys starting with `t4g_`, which now
-  legitimately includes the actual data tables (`t4g_data_users`,
-  `t4g_data_transactions` — see `src/keys.js`), UI settings
-  (`t4g_config_*`), and the rate cache (`t4g_cache_*`) — a schema-`2`+ full
-  backup is a genuinely complete snapshot.
+| Schema version | Scope | Includes | Excludes |
+| --- | --- | --- | --- |
+| `1` (legacy) | legacy scope | `users`, `transactions`, every `t4g_`-prefixed key (at schema `1`, just `t4g_appVersion`/`t4g_dataSchemaVersion`) | rate cache (`currencyRates_<date>`), UI settings (`themePreference`, `addTransaction`) — genuine schema-`1` data predates the `t4g_` namespace entirely, so they're still under their unprefixed names and don't match either branch of the filter |
+| `2`+ (current, since [T4G-0021](T4G-0021-schema-migration-key-namespacing.md)) | `t4g_`-only scope | every `t4g_`-prefixed key — now legitimately includes the actual data tables (`t4g_data_users`, `t4g_data_transactions` — see `src/keys.js`), UI settings (`t4g_config_*`), and the rate cache (`t4g_cache_*`) | nothing relevant — a genuinely complete snapshot |
 
 Restoring a backup migrates its data to the current schema before applying
 it (`processJSONImport()`, `script.js`, via `runMigrations()` —
@@ -173,16 +164,32 @@ top when opened from the migration flow).
   is checked — recommending a full backup first, and a "Start Import"
   button. Choosing a file only *stages* it: `onImportFileChosen()` shows
   the picked filename and enables "Start Import" (disabled until then).
-  Clicking "Start Import" (`startImport()`) reads the staged file off the
-  input and calls `handleImportFile(file)`, which reads the overwrite
-  checkbox, reads the file via `FileReader`, and for `.json` calls the
-  JSON restore path above; for `.csv` reads the header, routes via
-  `detectCSVKind` to `buildImportResult` or `buildUsersImportResult` with
-  the overwrite flag, then saves and refreshes the UI. An unrecognized
-  `.csv` header or invalid `.json` alerts with the failure and makes no
-  partial write; the modal stays open (with the file still staged).
   `openImportModal()` resets the checkbox, warning, staged filename, and
   disables "Start Import" again each time the modal opens.
+
+```mermaid
+flowchart TD
+    A["Start Import" clicked] --> B["handleImportFile(file)"]
+    B --> C{Extension}
+    C -- .json --> D["parseBackupJSON()"]
+    D -- invalid/malformed --> X[Alert failure\nmodal stays open, file still staged]
+    D -- valid --> E["runMigrations() to current schema"]
+    E --> F{Overwrite checked?}
+    F -- yes --> G[Remove every tracked key,\nwrite migrated snapshot,\nstamp DATA_SCHEMA_VERSION]
+    F -- no --> H["mergeBackupData() onto\nexisting users/transactions"]
+    C -- .csv --> I["detectCSVKind(header)"]
+    I -- transactions header --> J["buildImportResult()"]
+    I -- users header --> K["buildUsersImportResult()"]
+    I -- unrecognized --> X
+    J --> L{Overwrite checked?}
+    K --> L
+    L -- yes --> M[Replace table/dataset\nwith file contents]
+    L -- no --> N["Merge: skip rows that already\nexist by timestamp/id"]
+    G --> Z[Save, refresh UI]
+    H --> Z
+    M --> Z
+    N --> Z
+```
 
 The toolbar's "⬇ Export" (`openExportModal()`) / "⬆ Import"
 (`openImportModal()`) buttons open these modals. The transaction-only
@@ -203,6 +210,15 @@ complete JSON restore point (or either of the other two formats).
   export — a filtered transactions CSV or a users CSV with no transactions
   isn't guaranteed to be a *complete* backup the way the JSON snapshot is.
   Proposed: keep as-is; this is intentional, not an oversight.
+- Quirk: the Export and Import modals only close via their own "Close"/
+  "Start Import" buttons — no backdrop click or Escape key. Unlike the
+  update/migration modals ([T4G-0018](T4G-0018-update-notification.md),
+  [T4G-0019](T4G-0019-data-schema-version.md)), nothing here requires
+  forced acknowledgment, so this is just a missing convenience, not a
+  deliberate choice.
+  Proposed: close on backdrop click, `Escape`, and the Android back
+  gesture (`popstate`), same as [T4G-0014](T4G-0014-data-and-cache-clearing.md)'s
+  Clear Data modal — share one dismissal helper across all three.
 
 ## Testing
 

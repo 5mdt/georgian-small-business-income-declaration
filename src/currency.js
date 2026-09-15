@@ -89,8 +89,10 @@ export function saveCurrencyRatesToCache(date, data) {
 // #T4G-0002
 export function fetchCurrencyRates(date, fetchImpl = fetch) {
     const apiUrl = `https://nbg.gov.ge/gw/api/ct/monetarypolicy/currencies/en/json/?date=${date}`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT);
 
-    return fetchImpl(apiUrl, { timeout: API_TIMEOUT })
+    return fetchImpl(apiUrl, { signal: controller.signal })
         .then(response => {
             if (!response.ok) {
                 throw new Error(ERROR_MESSAGES.API_ERROR);
@@ -100,5 +102,12 @@ export function fetchCurrencyRates(date, fetchImpl = fetch) {
         .then(data => {
             saveCurrencyRatesToCache(date, data);
             return data;
-        });
+        })
+        .catch(error => {
+            if (error.name === 'AbortError') {
+                throw new Error(ERROR_MESSAGES.API_TIMEOUT_ERROR);
+            }
+            throw error;
+        })
+        .finally(() => clearTimeout(timeoutId));
 }

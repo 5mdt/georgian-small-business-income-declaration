@@ -42,5 +42,7 @@ methodology, directory layout, and workflow: `docs/DOCS-DRIVEN-DEVELOPMENT.md`.
 - `docs/features/T4G-NNNN-*.md` — one doc per feature (HOW it works,
   Testing, Status)
 - `docs/CHANGELOG.md` — reverse-chronological log of shipped changes
-- `docs/todo.md` — flat backlog of unpromoted ideas
-- `docs/bugs.md` — defects, quirks, tech debt, and chores on shipped behavior
+- `docs/ROADMAP.md` — prioritized (Next/Later/Someday) view over
+  `TODO.md`/`BUGS.md`; sequencing only, not requirements
+- `docs/TODO.md` — flat backlog of unpromoted ideas
+- `docs/BUGS.md` — defects, quirks, tech debt, and chores on shipped behavior

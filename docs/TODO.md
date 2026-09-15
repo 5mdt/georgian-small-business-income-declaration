@@ -1,24 +1,15 @@
 # Features to add
 
-- Total income should be separated by user; supertotal income is useful too.
-- Tint rows with user's color in table.
-- Add yearly total separator in table.
 - Add pop-up hints on buttons.
-- Hide/grey out "Load Demo Data" button when transactions exist.
 - Move user management block to sidebar.
-- Inform if the currency API is limited/unavailable.
+- Rework the ui
 - Option to save a transaction even if the exchange rate can't be retrieved.
-- Grey out digits after the decimal separator (CSS class).
-- Currency column update: show only currency code, like USD in table. Show full currency name in hint
 - Update version modal window update: show from which version to which was the upgrade made
-- Script to generate screenshot using mock data in playwright. Include both light and dark theme on screenshot
 - Import full backup validation first
 - Import full backup dry-run
 - Safer localstorage data. Use html-codes for quotes and other special charecters? Add not-safe charecters in demo.
-- Add changelog modal window, that gathers info from CHANGELOG.md
 - Add diff changelog to "app version updated window"
 - Make Toggle user list similar togglable as disclaimer and how it works, but collapsed by default
 - Add version info in UI
 - Replace transaction comment input with multiline label and edit button with modal
-- Make modal windows close on click outside the window, Escape button and maybe on android's "back" button too?
 - Add donate button

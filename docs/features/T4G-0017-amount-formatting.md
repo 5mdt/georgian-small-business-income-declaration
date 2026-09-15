@@ -26,6 +26,16 @@ Used throughout `script.js` rendering: conversion result, transaction table
 rows/footer ([T4G-0007](T4G-0007-transaction-management.md)), user-facing
 amounts generally.
 
+## Quirks & Decisions
+
+- Quirk: the two decimal digits render with the same weight as the integer
+  part, so `1,234.00` reads no differently at a glance from `1,234.56`.
+  Proposed: `formatCurrency` wraps the decimal portion in a `<span>` with a
+  new CSS class (e.g. `.amount-decimals`) styled in a muted color, so the
+  integer part stands out. Callers that need plain text (CSV export,
+  `title` attributes) keep using the existing unwrapped return value or a
+  new `formatCurrencyPlain` alias.
+
 ## Testing
 
 ### Unit

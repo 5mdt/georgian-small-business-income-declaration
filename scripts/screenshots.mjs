@@ -18,6 +18,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from '@playwright/test';
+import { COLLAPSIBLE_KEY_PREFIX } from '../src/keys.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = path.resolve(__dirname, '..');
@@ -91,6 +92,13 @@ async function captureThemeScreenshot(browser, baseUrl, theme, outPath) {
     await context.addInitScript(
         ({ key, value }) => window.localStorage.setItem(key, JSON.stringify(value)),
         { key: THEME_STORAGE_KEY, value: theme }
+    );
+
+    // Collapse the Disclaimer section before the app's init script runs, so
+    // the screenshot isn't dominated by its wall of legal text.
+    await context.addInitScript(
+        ({ key }) => window.sessionStorage.setItem(key, 'collapsed'),
+        { key: `${COLLAPSIBLE_KEY_PREFIX}disclaimer` }
     );
 
     const page = await context.newPage();

@@ -586,8 +586,6 @@ textarea:disabled {
   position: sticky;
   top: var(--spacing-md);
   align-self: start;
-  max-height: calc(100vh - var(--spacing-xl));
-  overflow-y: auto;
 }
 
 .result-display {
@@ -974,8 +972,6 @@ tfoot td {
 @media (max-width: 1023px) {
   .converter-panel {
     position: static;
-    max-height: none;
-    overflow-y: visible;
   }
 }
 

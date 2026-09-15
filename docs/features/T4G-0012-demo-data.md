@@ -33,7 +33,9 @@ tie-break ([T4G-0009](T4G-0009-filter-and-sort.md)).
 
 - Quirk: the "📊 Load Demo Data" button stays visible and enabled even once
   transactions exist, only rejecting the click with an `alert()`.
-  Open: hide/grey it out once transactions exist (tracked in `docs/todo.md`).
+  Proposed: disable (grey out) the button once any transaction exists,
+  rather than letting it be clicked and rejected. Keep the `alert()` guard
+  in `loadDemoData()` itself as defense in depth.
 
 ## Testing
 

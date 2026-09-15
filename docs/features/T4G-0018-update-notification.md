@@ -30,11 +30,13 @@ Missing segments are treated as `0`.
   `t4g_<category>_` namespacing convention documented in
   [T4G-0013](T4G-0013-local-storage-persistence.md)).
 - `checkForAppUpdate()`, called from `window.onload`:
-  - No stored version (first-ever visit) → silently `saveToStorage`s
-    `APP_VERSION`, no popup.
-  - Stored version present and `compareVersions(stored, APP_VERSION) < 0`
-    → shows the update modal.
-  - Stored version present and >= current → no-op.
+
+| Stored version | vs. `APP_VERSION` | Result |
+| --- | --- | --- |
+| Missing (first-ever visit) | — | Silently `saveToStorage`s `APP_VERSION`, no popup |
+| Present | `compareVersions(stored, APP_VERSION) < 0` | Shows the update modal |
+| Present | `>= APP_VERSION` | No-op |
+
 - The modal (`#updateModal` in `index.html`, toggled via
   `showElement`/`hideElement` from `src/dom.js`) has exactly one
   interactive control: a "Got it" button. Clicking it is the only thing

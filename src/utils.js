@@ -24,6 +24,7 @@ export const ERROR_MESSAGES = {
     INVALID_USERS_CSV: 'Invalid CSV format. Missing required user columns.',
     INVALID_BACKUP: 'Invalid backup file. Expected a JSON export from this app.',
     API_ERROR: 'Failed to fetch exchange rates. Please try again.',
+    API_TIMEOUT_ERROR: 'Fetching exchange rates timed out. Please try again.',
     NO_CURRENCY_DATA: 'No valid currency data available.',
     CURRENCY_NOT_FOUND: 'Selected currency not found.'
 };

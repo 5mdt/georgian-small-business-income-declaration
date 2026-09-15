@@ -115,7 +115,7 @@ Backup & restore (CSV/JSON import/export):
 
 ## Gotchas
 
-- **API timeout** (`#BUG-0002`, see `docs/bugs.md`): `fetchCurrencyRates`
+- **API timeout** (`#BUG-0002`, see `docs/BUGS.md`): `fetchCurrencyRates`
   passes `{ timeout: API_TIMEOUT }` to `fetch()`, but native `fetch` has no
   `timeout` option — this is currently a no-op, not an enforced timeout.
 - Storage quota handling:

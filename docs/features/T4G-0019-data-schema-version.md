@@ -27,35 +27,37 @@ and transform function — see
 
 `script.js` (Data Schema Migration section):
 - `DATA_SCHEMA_STORAGE_KEY = 't4g_dataSchemaVersion'`.
-- `checkForSchemaMigration()`:
-  - Stored key present and numerically less than `DATA_SCHEMA_VERSION` →
-    shows the migration modal.
-  - Stored key missing but transactions exist
-    ([T4G-0013](T4G-0013-local-storage-persistence.md)) → treated as
-    schema `1` (the baseline before this feature existed), then compared as
-    above.
-  - Stored key missing and no transactions (fresh install), or stored
-    version already current/newer → silently persists
-    `DATA_SCHEMA_VERSION`, no modal.
-- `dismissMigrationModal()` (`script.js`) runs the migration (via
-  `runSchemaMigration()`) before stamping the new version.
 - The modal (`#migrationModal` in `index.html`, same `.modal-overlay`/
   `.modal` styling as [T4G-0018](T4G-0018-update-notification.md)'s update
-  modal) has two controls:
-  - "Download backup" → `openExportModal()`, the shared Export modal from
-    [T4G-0020](T4G-0020-backup-and-restore.md) (transactions CSV / users CSV
-    / full JSON backup). Only a successful full JSON backup export sets
-    in-memory `migrationBackupDownloaded = true` — the other two formats
-    aren't guaranteed to be complete (a filtered transactions CSV, or a
-    users CSV with no transactions), so they don't satisfy the "you have a
-    backup" check.
-  - "Continue" → `dismissMigrationModal()`. If no backup was downloaded
-    this session, `confirm()`s first; canceling leaves the modal open. On
-    confirm (or if a backup was already downloaded), runs the actual data
-    migration (`runSchemaMigration()` — see
-    [T4G-0021](T4G-0021-schema-migration-key-namespacing.md)), persists
-    `DATA_SCHEMA_VERSION`, and hides the modal. No backdrop/Escape
-    dismissal.
+  modal) has two controls: "Download backup" → `openExportModal()`, the
+  shared Export modal from [T4G-0020](T4G-0020-backup-and-restore.md)
+  (transactions CSV / users CSV / full JSON backup); "Continue" →
+  `dismissMigrationModal()`, which runs the actual migration
+  (`runSchemaMigration()`) before stamping the new version. No backdrop/
+  Escape dismissal.
+
+```mermaid
+flowchart TD
+    A["checkForSchemaMigration()"] --> B{Stored schema key?}
+    B -- missing, transactions exist --> C["Baseline = schema 1"]
+    B -- missing, no transactions --> F["Persist DATA_SCHEMA_VERSION\n(no modal)"]
+    B -- present --> D{"stored < DATA_SCHEMA_VERSION?"}
+    C --> D
+    D -- no --> F
+    D -- yes --> E[Show migration modal]
+    E --> G["Continue clicked"]
+    G --> H{"Backup downloaded\nthis session?"}
+    H -- no --> I[confirm dialog]
+    I -- cancel --> E
+    I -- OK --> J["runSchemaMigration(), persist\nDATA_SCHEMA_VERSION, hide modal"]
+    H -- yes --> J
+```
+
+Only a successful full JSON backup export (not the transactions-CSV or
+users-CSV options) sets in-memory `migrationBackupDownloaded = true` — the
+other two formats aren't guaranteed to be a *complete* backup (a filtered
+transactions CSV, or a users CSV with no transactions), so they don't
+satisfy the "backup downloaded" check in the flow above.
 
 **Load ordering with T4G-0018**: `checkForSchemaMigration()` only runs
 after the update modal is resolved — chained from `checkForAppUpdate()`

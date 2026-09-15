@@ -21,7 +21,11 @@ same date don't re-fetch.
   `https://nbg.gov.ge/gw/api/ct/monetarypolicy/currencies/en/json/?date=YYYY-MM-DD`,
   throws `ERROR_MESSAGES.API_ERROR` on a non-ok response, and caches the
   parsed body via `saveCurrencyRatesToCache` on success. `fetchImpl` is
-  injectable for testing.
+  injectable for testing. The request is bounded by `API_TIMEOUT` (10s) via
+  an `AbortController`: a `setTimeout` aborts the signal passed to
+  `fetchImpl`, and an `AbortError` is rethrown as
+  `ERROR_MESSAGES.API_TIMEOUT_ERROR`. The timeout is always cleared
+  (`.finally`) so it never outlives the request.
 - `getCurrencyRatesFromCache(date)` / `saveCurrencyRatesToCache(date, data)`
   read/write `STORAGE_KEYS`-namespaced `localStorage` key
   `t4g_cache_currencyRates_${date}` (`CURRENCY_RATE_KEY_PREFIX`, `src/keys.js`;
@@ -39,6 +43,18 @@ divides by `quantity` ([T4G-0001](T4G-0001-currency-conversion.md)).
 populates the currency `<select>` (GEL always listed first). The API
 endpoint is not configurable.
 
+## Quirks & Decisions
+
+- Quirk: a fetch failure (including the `#BUG-0002` timeout above) only
+  surfaces as a transient `errorMessage` text set at the point of the
+  failed call — there's no persistent, glanceable indicator that the NBG
+  API is currently unreachable, so a user who navigates away from that
+  error text has no way to tell rates are unavailable until they try again.
+  Proposed: track a `currencyApiUnavailable` flag, set on a failed
+  `fetchCurrencyRates`/`loadCurrencies` call and cleared on the next
+  success, and render a persistent (not auto-dismissing) banner near the
+  converter while it's set.
+
 ## Testing
 
 ### Human
@@ -55,7 +71,8 @@ endpoint is not configurable.
 `tests/unit/currency.test.js`: `validateCurrencyResponse`,
 `findCurrencyInData` (GEL shortcut, found, not-found, malformed response),
 cache read/write/independence per date, `fetchCurrencyRates` success/
-non-ok/network-rejection paths.
+non-ok/network-rejection/timeout paths, and that an `AbortSignal` (not the
+unsupported `timeout` option) is passed to `fetchImpl`.
 
 ### Integration
 

@@ -1,6 +1,6 @@
 # Docs-Driven Development Approach
 
-**Version:** 1.5 · **Last updated:** 2026-09-14
+**Version:** 1.5 · **Last updated:** 2026-09-15
 
 <!-- Bump both whenever this document's rules or templates change. -->
 
@@ -10,33 +10,51 @@
 - **FRD** – index of all features.
 - **Todo** – ideas not yet promoted to features.
 - **Bug** – a defect or debt item in shipped behavior; not a feature.
+- **Roadmap** – the order to work Todo and Bug items in. Holds no behavior.
+- **Epic** – a named group of items worked as one stretch.
+
+## Philosophy
+
+- Docs are the contract. Code just proves it.
+- Docs → Tests → Code. Never the other order.
+- Short docs get updated. Long docs get skipped.
+- See a gap? Write it down now, not later.
 
 ## Rules
 
-- Docs → Tests → Code.
-- Docs define behavior.
-- Keep docs short: describe behavior and implementation, omit design rationale.
-- Edit only what changed; omit unused sections.
-- Changed behavior edits the existing document. New behavior gets a new ID.
-- Log any quirk, bug, or open question the moment you notice it — as a `todo.md`
-  or `bugs.md` line — regardless of what you're currently working on. Don't defer
-  it until the current task is done.
+- Changed behavior edits the existing document; new behavior gets a new ID.
 - Reference an ID as `#<PREFIX>-NNNN` in commit messages, code comments, and
   prose mentions that aren't linking to the doc itself (e.g. `paging #MDV-0018`).
   When linking to the feature doc from within `docs/`, use a real Markdown link
   (`[<PREFIX>-NNNN](<PREFIX>-NNNN-slug.md)`), not a bare mention.
 - Every top-level function/class implementing a feature carries the `#<PREFIX>-NNNN`
   IDs it implements, either as a comment directly above it or as the first line of its
-  docstring (multiple IDs, comma-separated). This is what CLAUDE.md's "FRD feature id
-  must be added to functions as comments" rule means in practice.
+  docstring (multiple IDs, comma-separated).
+
+## Visuals
+
+| What you describe | Form |
+| --- | --- |
+| One fact | Sentence |
+| A choice or a gate | Table |
+| Ordered steps, branches | `mermaid` flowchart |
+| States and transitions | `mermaid` stateDiagram |
+| Paths, trees, layout | Fenced ASCII |
+| Two axes (item × target) | Table |
+
+- If the prose is longer than the drawing, delete the prose.
+- Label every branch. An unlabeled arrow is not a spec.
+- `mermaid` renders on GitHub and GitLab. Text piped elsewhere (a package
+  description, `--help` output) stays a table or ASCII.
 
 ## Directory layout
 
 ```text
 docs/
   FRD.md
-  todo.md
-  bugs.md
+  TODO.md
+  BUGS.md
+  ROADMAP.md  # optional
   CHANGELOG.md
   features/
     TEMPLATE.md
@@ -56,9 +74,17 @@ docs/
 5. Update status.
 6. If implemented or deprecated, add a changelog entry.
 
-Steps 1–6 are for a specific feature. Logging a quirk or bug to `bugs.md` (or an idea
-to `todo.md`) happens continuously alongside this workflow, whenever one turns up —
-see Rules above.
+Steps 1–6 are for a specific feature.
+
+```mermaid
+flowchart LR
+  R[ROADMAP.md] -->|what next| D[Feature doc]
+  D --> F[FRD.md] --> T[Tests] --> C[Code] --> S[Status + CHANGELOG]
+  N(Notice a quirk) -.-> B[BUGS.md / TODO.md]
+  B -.->|when it earns a slot| R
+```
+
+The dotted path runs at any time, from anywhere.
 
 ## FRD.md template
 
@@ -113,6 +139,9 @@ writing the doc, each as either `- Quirk: <what happens and why it's off>` follo
 
 Omit sections that don't apply. Status is one of: `Planned`, `Implemented`, `Deprecated`.
 
+`## Behavior` and `## Implementation` may be a table or a diagram. Same rules as
+Visuals.
+
 ## Feature document example (`docs/features/EXAMPLE.md`)
 
 ```markdown
@@ -165,7 +194,7 @@ The existing instance exits on `SIGTERM`.
 Implemented
 ```
 
-## todo.md template
+## TODO.md template
 
 ```markdown
 # Features to add
@@ -175,7 +204,7 @@ Implemented
 
 Remove the line once promoted to a feature doc.
 
-## bugs.md template
+## BUGS.md template
 
 ```markdown
 # Bugs & debt
@@ -201,13 +230,34 @@ Difficulty: D1 = trivial  D2 = small    D3 = medium   D4 = large
 ```
 
 Defects, quirks, tech debt, and chores on already-shipped behavior go here, not in
-`todo.md` (new behavior only). Every entry gets a stable `#BUG-NNNN` ID from the same
-sequence regardless of which section it lands in — IDs are never reused or renumbered,
-so deleting a fixed entry leaves a gap. Every entry ends with a `[P#/D#]` marker (see
-above) so entries can be triaged and sorted by priority/difficulty at a glance. Group
-entries under an area-specific `###` subheading (e.g. `### Downloads / cache`) when a
-section covers more than a handful of items — the three `##` sections are mandatory,
-the subheadings under them are just for navigation.
+`TODO.md` (new behavior only). IDs share one sequence across sections, never reused
+or renumbered — deleting a fixed entry leaves a gap. Group entries under an
+area-specific `###` subheading (e.g. `### Downloads / cache`) when a section grows
+past a handful — the three `##` sections are mandatory, subheadings are just
+navigation.
+
+## ROADMAP.md template
+
+Optional. Add one when `BUGS.md` and `TODO.md` stop fitting on a screen.
+
+```markdown
+# Roadmap
+
+| # | Epic | Why here |
+| --- | --- | --- |
+| 1 | <name> | <one line> |
+
+## 1. <Epic name>
+
+1. #BUG-0001 — <why this one first>
+2. #TODO-0003 — <why this one next>
+
+**Done when:** <one observable thing>
+```
+
+- Order, not scope. An item's contract stays in its feature doc.
+- Delete an item here when its `BUGS.md`/`TODO.md` entry is deleted — same commit.
+- Never a blocker. If the work proves the order wrong, fix the roadmap after.
 
 ## CHANGELOG.md template
 
@@ -232,8 +282,9 @@ Rules:
 
 ## Adopting this approach
 
-1. Create the directory structure above, with empty `FRD.md`, `todo.md`, and
-   `CHANGELOG.md`, and `TEMPLATE.md`/`EXAMPLE.md` copied into `features/`.
+1. Create the directory structure above, with empty `FRD.md`, `TODO.md`,
+   `BUGS.md`, and `CHANGELOG.md`, and `TEMPLATE.md`/`EXAMPLE.md` copied into
+   `features/`.
 2. Add the Rules section to your project's `CLAUDE.md` or `AGENTS.md`.
 3. Choose a project prefix and start numbering at `0001`.
 
@@ -242,3 +293,4 @@ Rules:
 - `FRD.md` and its tag index are maintained manually.
 - Sequential IDs are stable references but don't provide thematic grouping.
 - Best suited to projects with roughly dozens - not hundreds - of features.
+- The roadmap drifts unless pruned in the same commit that closes an item.

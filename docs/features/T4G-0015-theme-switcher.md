@@ -15,7 +15,17 @@ to the automatic `prefers-color-scheme` dark mode.
 ## Implementation
 
 `script.js` (Theme Management section):
-- `THEME_OPTIONS = ['system', 'light', 'dark']`, cycled by `toggleTheme()`.
+- `THEME_OPTIONS = ['system', 'light', 'dark']`, cycled by `toggleTheme()`:
+
+```mermaid
+stateDiagram-v2
+    [*] --> System
+    System --> Light: toggleTheme()
+    Light --> Dark: toggleTheme()
+    Dark --> System: toggleTheme()
+    System --> System: OS theme changes\n(resolves via prefers-color-scheme)
+```
+
 - `getThemePreference()` reads `t4g_config_themePreference`
   (`STORAGE_KEYS.themePreference`, `src/keys.js`;
   [T4G-0013](T4G-0013-local-storage-persistence.md)), defaulting to

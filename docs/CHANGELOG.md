@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.9.1 2026-09-15
+
+- Fixed the left converter panel on desktop being clipped to one viewport
+  height with its own inner scrollbar (`max-height` + `overflow-y: auto` on
+  `.converter-panel`), which made the footer appear right after the cut-off
+  content. The panel now renders at full height and stays sticky without a
+  height cap (`style.css`).
+- #BUG-0002: `fetchCurrencyRates` ([T4G-0002](features/T4G-0002-nbg-rate-fetch-cache.md),
+  `src/currency.js`) now aborts a hung NBG request after `API_TIMEOUT` using
+  an `AbortController`, instead of the previous `{ timeout: API_TIMEOUT }`
+  fetch option, which native `fetch()` silently ignores. A timed-out request
+  now rejects with the new `ERROR_MESSAGES.API_TIMEOUT_ERROR` (`src/utils.js`).
+
 ## v1.9.0 2026-09-14
 
 - T4G-0008: The per-user monthly summary row now also shows that month's
